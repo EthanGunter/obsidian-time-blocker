@@ -1,40 +1,75 @@
 import { Plugin } from "obsidian";
+import { TimeBlockModal } from "./src/ui/TimeBlockModal";
+import { TimeBlockSettingsTab, DEFAULT_SETTINGS, type TimeBlockPlannerSettings } from "./src/settings";
+import { hasDailyNotesPlugin, hasPeriodicNotesPlugin, getDailyNoteSettings, getPeriodicNoteSettings } from "./src/utilities";
 
-export default class ExamplePlugin extends Plugin {
-	statusBarElement: HTMLSpanElement;
+export default class TimeBlockPlugin extends Plugin {
+    settings: TimeBlockPlannerSettings;
 
-	onload() {
-		this.statusBarElement = this.addStatusBarItem().createEl("span");
+    async onload() {
+        await this.loadSettings();
 
-		this.readActiveFileAndUpdateLineCount();
+        this.addRibbonIcon("calendar-days", "Time Block Planner", () => {
+            new TimeBlockModal(this.app, this).open();
+        });
 
-		this.app.workspace.on("editor-change", (editor) => {
-			const content = editor.getDoc().getValue();
-			this.updateLineCount(content);
-		});
+        this.addSettingTab(new TimeBlockSettingsTab(this.app, this));
+    }
 
-		this.app.workspace.on("active-leaf-change", () => {
-			this.readActiveFileAndUpdateLineCount();
-		});
-	}
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        
+        // Ensure all settings properties exist
+        if (!this.settings.daily) {
+            this.settings.daily = DEFAULT_SETTINGS.daily;
+        }
+        if (!this.settings.weekly) {
+            this.settings.weekly = DEFAULT_SETTINGS.weekly;
+        }
+        if (!this.settings.monthly) {
+            this.settings.monthly = DEFAULT_SETTINGS.monthly;
+        }
+        
+        // Import settings from Daily Notes or Periodic Notes if available
+        this.importExistingSettings();
+    }
+    
+    private importExistingSettings() {
+        // Check for Periodic Notes plugin first
+        if (hasPeriodicNotesPlugin()) {
+            const dailySettings = getPeriodicNoteSettings('daily');
+            if (dailySettings.format) {
+                this.settings.daily.format = dailySettings.format;
+                this.settings.daily.folder = dailySettings.folder;
+            }
+            
+            const weeklySettings = getPeriodicNoteSettings('weekly');
+            if (weeklySettings.format) {
+                this.settings.weekly.format = weeklySettings.format;
+                this.settings.weekly.folder = weeklySettings.folder;
+            }
+            
+            const monthlySettings = getPeriodicNoteSettings('monthly');
+            if (monthlySettings.format) {
+                this.settings.monthly.format = monthlySettings.format;
+                this.settings.monthly.folder = monthlySettings.folder;
+            }
+        } 
+        // Fall back to Daily Notes plugin
+        else if (hasDailyNotesPlugin()) {
+            const dailySettings = getDailyNoteSettings();
+            if (dailySettings.format) {
+                this.settings.daily.format = dailySettings.format;
+                this.settings.daily.folder = dailySettings.folder;
+            }
+        }
+    }
 
-	onunload() {
-		this.statusBarElement.remove();
-	}
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
 
-	private async readActiveFileAndUpdateLineCount() {
-		const file = this.app.workspace.getActiveFile();
-		if (file) {
-			const content = await this.app.vault.read(file);
-			this.updateLineCount(content);
-		} else {
-			this.updateLineCount(undefined);
-		}
-	}
-
-	private updateLineCount(fileContent?: string) {
-		const count = fileContent ? fileContent.split(/\r\n|\r|\n/).length : 0;
-		const linesWord = count === 1 ? "line" : "lines";
-		this.statusBarElement.textContent = `${count} ${linesWord}`;
-	}
+    onunload() {
+        // Cleanup any resources if needed
+    }
 }

@@ -1,0 +1,17 @@
+.settings-banner {
+    background: var(--background-modifier-border);
+    padding: 1em;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+}
+
+.settings-banner a {
+    color: var(--text-accent);
+    text-decoration: underline;
+}
+
+.timeblock-period-section {
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 1.5rem;
+}
