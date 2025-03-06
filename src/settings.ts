@@ -1,57 +1,7 @@
 import { App, moment, PluginSettingTab, Setting } from "obsidian";
 import TimeBlockPlugin from "../main";
-import { hasDailyNotesPlugin, hasPeriodicNotesPlugin } from "./utilities";
+import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period } from "./utilities";
 
-export interface TimeBlockPlannerSettings {
-    daily: {
-        enabled: boolean;
-        format: string;
-        folder: string;
-        template?: string;
-    };
-    weekly: {
-        enabled: boolean;
-        format: string;
-        folder: string;
-        template?: string;
-    };
-    monthly: {
-        enabled: boolean;
-        format: string;
-        folder: string;
-        template?: string;
-    };
-}
-
-export const DEFAULT_SETTINGS: TimeBlockPlannerSettings = {
-    daily: {
-        enabled: true,
-        format: 'YYYY-MM-DD',
-        folder: 'Daily Notes',
-        template: ''
-    },
-    weekly: {
-        enabled: true,
-        format: 'gggg-[W]ww',
-        folder: 'Weekly Reviews',
-        template: ''
-    },
-    monthly: {
-        enabled: true,
-        format: 'YYYY-MM',
-        folder: 'Monthly Reviews',
-        template: ''
-    }
-};
-
-function validateMomentFormat(format: string): boolean {
-    try {
-        moment().format(format);
-        return true;
-    } catch {
-        return false;
-    }
-}
 
 export class TimeBlockSettingsTab extends PluginSettingTab {
     plugin: TimeBlockPlugin;
@@ -65,65 +15,89 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        const hasPeriodic = hasPeriodicNotesPlugin();
-        const hasDaily = hasDailyNotesPlugin();
-
         // Show integration banner if neither plugin is installed
-        if (!hasPeriodic && !hasDaily) {
+        if (!pluginExists(PERIODIC_NOTES) && !pluginExists(DAILY_NOTES)) {
             containerEl.createDiv('settings-banner', banner => {
                 banner.createEl('h3', { text: 'Recommended Integration' });
                 banner.createEl('p', {
-                    text: 'For best results, install either the ',
+                    text: 'For best results, activate either ',
                     cls: 'setting-item-description'
                 });
                 banner.createEl('a', {
                     text: 'Periodic Notes',
-                    href: 'https://obsidian.md/plugins?id=periodic-notes'
+                    href: 'obsidian://show-plugin?id=periodic-notes'
                 });
-                banner.createEl('span', { text: ' or ' });
+                banner.createEl('span', { text: ' or the built in ' });
                 banner.createEl('a', {
-                    text: 'Daily Notes', 
+                    text: 'Daily Notes',
                     href: 'https://obsidian.md/plugins?id=daily-notes'
                 });
                 banner.createEl('span', { text: ' plugin.' });
             });
         }
 
-        // Daily Notes Section
-        if (!hasPeriodic && !hasDaily) {
-            this.createPeriodSection('daily', 'Day');
-        }
-
-        // Weekly Notes Section
-        if (!hasPeriodic) {
-            this.createPeriodSection('weekly', 'Week');
-        }
-
-        // Monthly Notes Section  
-        if (!hasPeriodic) {
-            this.createPeriodSection('monthly', 'Month');
-        }
+        // Always create sections but let them show managed state
+        this.createPeriodSection('daily');
+        this.createPeriodSection('weekly');
     }
 
-    private createPeriodSection(period: 'daily'|'weekly'|'monthly', displayName: string) {
+    private createPeriodSection(period: Period) {
         const section = this.containerEl.createDiv('timeblock-period-section');
-        section.createEl('h3', { text: `${displayName} Settings` });
+        const pluginSettings = this.getSettings(period);
+        console.log(pluginSettings);
 
-        new Setting(section)
-            .setName(`Enable ${displayName} Notes`)
-            .addToggle(toggle => toggle
+        const managedBy = pluginSettings.plugin
+
+        let format = "";
+        if (managedBy) {
+            if (pluginSettings.folder)
+                format += pluginSettings.folder + '/'
+            format += pluginSettings.format
+        }
+        else {
+            format = this.plugin.settings[period].format;
+        }
+
+        // Add managed state class to section
+        if (managedBy) {
+            section.addClass('is-managed');
+        }
+
+        console.log(managedBy);
+
+        // Content area
+        if (!this.plugin.settings[period].enabled) {
+            const headerSetting = new Setting(section)
+                .setName(`${period} Tasks`)
+                .setHeading();
+            headerSetting.addToggle(toggle => toggle
                 .setValue(this.plugin.settings[period].enabled)
                 .onChange(async value => {
                     this.plugin.settings[period].enabled = value;
                     await this.plugin.saveSettings();
+                    this.display(); // Refresh to show/hide content
                 }));
+        } else {
+            const headerSetting = new Setting(section)
+                .setName(`${period} Tasks`)
+                .setHeading();
 
-        if (this.plugin.settings[period].enabled) {
+            if (!managedBy) {
+                headerSetting.addToggle(toggle => toggle
+                    .setValue(this.plugin.settings[period].enabled)
+                    .onChange(async value => {
+                        this.plugin.settings[period].enabled = value;
+                        await this.plugin.saveSettings();
+                        this.display(); // Refresh to show/hide content
+                    }));
+            }
+
             new Setting(section)
-                .setName(`${displayName} Format`)
-                .setDesc(`Moment.js format pattern (e.g. ${this.plugin.settings[period].format})`)
+                .setName(`Date format`)
+                .setDesc(managedBy ? `Managed by ${managedBy}` : `Result: ${moment().format(format)}`)
                 .addText(text => text
-                    .setValue(this.plugin.settings[period].format)
+                    .setValue(format)
+                    .setDisabled(!!managedBy)
                     .onChange(async value => {
                         if (!validateMomentFormat(value)) {
                             alert("Invalid date format");
@@ -132,31 +106,36 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
                         this.plugin.settings[period].format = value;
                         await this.plugin.saveSettings();
                     }))
-                .addExtraButton(btn =>
-                    btn
-                        .setIcon("info")
-                        .setTooltip("Example: " + moment().format(this.plugin.settings[period].format))
-                );
+        }
+    }
 
-            new Setting(section)
-                .setName(`${displayName} Folder`)
-                .addText(text => text
-                    .setValue(this.plugin.settings[period].folder)
-                    .onChange(async value => {
-                        this.plugin.settings[period].folder = value;
-                        await this.plugin.saveSettings();
-                    }));
-                    
-            new Setting(section)
-                .setName(`Template file`)
-                .setDesc(`Template for new ${displayName.toLowerCase()} notes`)
-                .addText(text => text
-                    .setPlaceholder("Templates/Periodic Notes.md")
-                    .setValue(this.plugin.settings[period].template || "")
-                    .onChange(async value => {
-                        this.plugin.settings[period].template = value;
-                        await this.plugin.saveSettings();
-                    }));
+    private getSettings(period: Period): { enabled: boolean; format: string; folder?: string; plugin?: string; } {
+        // Daily notes could come from either plugin
+        if (pluginExists(PERIODIC_NOTES)) {
+            // All other periods come from Periodic Notes
+            return getPeriodicNoteSettings(period);
+        }
+        else if (period === 'daily' && pluginExists(DAILY_NOTES)) {
+            return getDailyNoteSettings();
+        } else {
+            if (!this.plugin.settings[period]) {
+                this.plugin.settings[period] = DEFAULT_SETTINGS[period];
+            }
+            return this.plugin.settings[period];
         }
     }
 }
+
+
+//#region Utilities
+
+function validateMomentFormat(format: string): boolean {
+    try {
+        moment().format(format);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+//#endregion

@@ -1,7 +1,7 @@
 import { Plugin } from "obsidian";
 import { TimeBlockModal } from "./src/ui/TimeBlockModal";
-import { TimeBlockSettingsTab, DEFAULT_SETTINGS, type TimeBlockPlannerSettings } from "./src/settings";
-import { hasDailyNotesPlugin, hasPeriodicNotesPlugin, getDailyNoteSettings, getPeriodicNoteSettings } from "./src/utilities";
+import { TimeBlockSettingsTab } from "./src/settings";
+import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type TimeBlockPlannerSettings } from "./src/utilities";
 
 export default class TimeBlockPlugin extends Plugin {
     settings: TimeBlockPlannerSettings;
@@ -18,7 +18,7 @@ export default class TimeBlockPlugin extends Plugin {
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-        
+
         // Ensure all settings properties exist
         if (!this.settings.daily) {
             this.settings.daily = DEFAULT_SETTINGS.daily;
@@ -29,38 +29,34 @@ export default class TimeBlockPlugin extends Plugin {
         if (!this.settings.monthly) {
             this.settings.monthly = DEFAULT_SETTINGS.monthly;
         }
-        
+
         // Import settings from Daily Notes or Periodic Notes if available
         this.importExistingSettings();
     }
-    
+
     private importExistingSettings() {
         // Check for Periodic Notes plugin first
-        if (hasPeriodicNotesPlugin()) {
+        if (pluginExists(PERIODIC_NOTES)) {
             const dailySettings = getPeriodicNoteSettings('daily');
             if (dailySettings.format) {
-                this.settings.daily.format = dailySettings.format;
-                this.settings.daily.folder = dailySettings.folder;
+                this.settings.daily.format = dailySettings.folder + '/' + dailySettings.format;
             }
-            
+
             const weeklySettings = getPeriodicNoteSettings('weekly');
             if (weeklySettings.format) {
-                this.settings.weekly.format = weeklySettings.format;
-                this.settings.weekly.folder = weeklySettings.folder;
+                this.settings.weekly.format = weeklySettings.folder + '/' + weeklySettings.format;
             }
-            
+
             const monthlySettings = getPeriodicNoteSettings('monthly');
             if (monthlySettings.format) {
-                this.settings.monthly.format = monthlySettings.format;
-                this.settings.monthly.folder = monthlySettings.folder;
+                this.settings.monthly.format = monthlySettings.folder + '/' + monthlySettings.format;
             }
-        } 
+        }
         // Fall back to Daily Notes plugin
-        else if (hasDailyNotesPlugin()) {
+        else if (pluginExists(DAILY_NOTES)) {
             const dailySettings = getDailyNoteSettings();
             if (dailySettings.format) {
-                this.settings.daily.format = dailySettings.format;
-                this.settings.daily.folder = dailySettings.folder;
+                this.settings.daily.format = dailySettings.folder + '/' + dailySettings.format;
             }
         }
     }
@@ -71,5 +67,11 @@ export default class TimeBlockPlugin extends Plugin {
 
     onunload() {
         // Cleanup any resources if needed
+    }
+}
+
+declare global {
+    interface Window {
+        app?: any;
     }
 }
