@@ -14,23 +14,23 @@ export interface TimeBlockPlannerSettings {
 export const DEFAULT_SETTINGS: TimeBlockPlannerSettings = {
     daily: {
         enabled: true,
-        format: 'Journal/Daily/YYYY-MM-DD',
+        format: '[Journal/Daily/]YYYY-MM-DD',
     },
     weekly: {
         enabled: true,
-        format: 'Journal/Weekly/gggg-[W]ww',
+        format: '[Journal/Weekly/]gggg-[W]ww',
     },
     monthly: {
         enabled: false,
-        format: 'Journal/Monthly/YYYY-MM',
+        format: '[Journal/Monthly/]YYYY-MM',
     },
     quarterly: {
         enabled: false,
-        format: 'Journal/Monthly/YYYY-MM',
+        format: '[Journal/Monthly/]YYYY-MM',
     },
     yearly: {
         enabled: false,
-        format: 'Journal/Yearly/YYYY',
+        format: '[Journal/Yearly/]YYYY',
     }
 };
 

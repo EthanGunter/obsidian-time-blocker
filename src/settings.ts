@@ -44,14 +44,13 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
     private createPeriodSection(period: Period) {
         const section = this.containerEl.createDiv('timeblock-period-section');
         const pluginSettings = this.getSettings(period);
-        console.log(pluginSettings);
 
         const managedBy = pluginSettings.plugin
 
         let format = "";
         if (managedBy) {
             if (pluginSettings.folder)
-                format += pluginSettings.folder + '/'
+                format += "[" + pluginSettings.folder + '/]'
             format += pluginSettings.format
         }
         else {
@@ -62,8 +61,6 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
         if (managedBy) {
             section.addClass('is-managed');
         }
-
-        console.log(managedBy);
 
         // Content area
         if (!this.plugin.settings[period].enabled) {
@@ -80,17 +77,14 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
         } else {
             const headerSetting = new Setting(section)
                 .setName(`${period} Tasks`)
-                .setHeading();
-
-            if (!managedBy) {
-                headerSetting.addToggle(toggle => toggle
+                .setHeading()
+                .addToggle(toggle => toggle
                     .setValue(this.plugin.settings[period].enabled)
                     .onChange(async value => {
                         this.plugin.settings[period].enabled = value;
                         await this.plugin.saveSettings();
                         this.display(); // Refresh to show/hide content
                     }));
-            }
 
             new Setting(section)
                 .setName(`Date format`)
@@ -98,7 +92,16 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
                 .addText(text => text
                     .setValue(format)
                     .setDisabled(!!managedBy)
-                    .onChange(async value => {
+                .then(setting => {
+                    const updateDesc = () => {
+                        if (!managedBy) {
+                            setting.setDesc(`Result: ${moment().format(setting.components[0].inputEl.value)}`);
+                        }
+                    };
+                    updateDesc(); // Initial update
+                    
+                    setting.components[0].inputEl.oninput = updateDesc;
+                    setting.components[0].onChange(async value => {
                         if (!validateMomentFormat(value)) {
                             alert("Invalid date format");
                             return;
