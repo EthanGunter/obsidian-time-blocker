@@ -4,7 +4,7 @@ import TimeBlockView from "../components/TimeBlockView.svelte";
 
 export class TimeBlockModal extends Modal {
   component: any = null;
-  
+
   constructor(app: App, private plugin: TimeBlockPlugin) {
     super(app);
   }
@@ -13,7 +13,7 @@ export class TimeBlockModal extends Modal {
     this.component = new TimeBlockView({
       target: this.contentEl,
       props: {
-        settings: this.plugin.settings
+        plugin: this.plugin
       }
     });
   }

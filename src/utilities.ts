@@ -53,8 +53,6 @@ export const DAILY_NOTES = "daily-notes";
 export type Period = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export function pluginExists(pluginId: string): boolean {
-    console.log(pluginId, "exists:", getPluginInstance(pluginId) != null);
-
     return getPluginInstance(pluginId) != null;
 }
 
@@ -62,22 +60,28 @@ export function pluginExists(pluginId: string): boolean {
 export function getPeriodicNoteSettings(period: Period): NoteSettings {
     const plugin = getPluginInstance(PERIODIC_NOTES);
     const settings = plugin?.settings?.[period];
+
+    let format, pluginName;
     if (settings) {
-        if (!settings.format) settings.format = PeriodicDefaults[period].format
-        settings.plugin = PERIODIC_NOTES;
+        if (!settings.format) format = PeriodicDefaults[period].format
+        else if (settings.folder) format = `[${settings.folder}/]${settings.format}`;
+        pluginName = PERIODIC_NOTES;
     }
 
-    return settings;
+
+    return { ...settings, format, plugin: pluginName };
 }
 
 /** Get daily note settings from Daily Notes plugin if available */
 export function getDailyNoteSettings(): NoteSettings {
     const plugin = getPluginInstance(DAILY_NOTES);
     const settings = plugin?.settings;
-    if (settings)
-        settings.plugin = DAILY_NOTES;
+    let pluginName;
+    if (settings) {
+        pluginName = DAILY_NOTES;
+    }
 
-    return settings;
+    return { ...settings, plugin: pluginName };
 }
 
 

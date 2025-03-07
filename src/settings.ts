@@ -2,6 +2,9 @@ import { App, moment, PluginSettingTab, Setting } from "obsidian";
 import TimeBlockPlugin from "../main";
 import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period } from "./utilities";
 
+const periods: Period[] = [
+    'daily', 'weekly', 'monthly', 'quarterly', 'yearly'
+]
 
 export class TimeBlockSettingsTab extends PluginSettingTab {
     plugin: TimeBlockPlugin;
@@ -36,26 +39,19 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
             });
         }
 
-        // Always create sections but let them show managed state
-        this.createPeriodSection('daily');
-        this.createPeriodSection('weekly');
+        for (let i = 0; i < periods.length; i++) {
+            const period = periods[i];
+            this.createPeriodSection(period);
+        }
     }
 
     private createPeriodSection(period: Period) {
         const section = this.containerEl.createDiv('timeblock-period-section');
-        const pluginSettings = this.getSettings(period);
+        const pluginSettings = this.plugin.getSetting(period);
 
         const managedBy = pluginSettings.plugin
 
-        let format = "";
-        if (managedBy) {
-            if (pluginSettings.folder)
-                format += "[" + pluginSettings.folder + '/]'
-            format += pluginSettings.format
-        }
-        else {
-            format = this.plugin.settings[period].format;
-        }
+        let format = this.plugin.settings[period].format;
 
         // Add managed state class to section
         if (managedBy) {
@@ -92,53 +88,21 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
                 .addText(text => text
                     .setValue(format)
                     .setDisabled(!!managedBy)
-                .then(setting => {
-                    const updateDesc = () => {
-                        if (!managedBy) {
-                            setting.setDesc(`Result: ${moment().format(setting.components[0].inputEl.value)}`);
-                        }
-                    };
-                    updateDesc(); // Initial update
-                    
-                    setting.components[0].inputEl.oninput = updateDesc;
-                    setting.components[0].onChange(async value => {
-                        if (!validateMomentFormat(value)) {
-                            alert("Invalid date format");
-                            return;
-                        }
+                    .onChange(async (value) => {
                         this.plugin.settings[period].format = value;
                         await this.plugin.saveSettings();
-                    }))
+
+                        // Update the description text directly instead of refreshing whole UI
+                        const descEl = text.inputEl.closest('.setting-item')?.querySelector('.setting-item-description');
+                        if (descEl) {
+                            descEl.textContent = managedBy
+                                ? `Managed by ${managedBy}`
+                                : `Result: ${moment().format(value)}`;
+                        }
+                    })
+                )
         }
     }
 
-    private getSettings(period: Period): { enabled: boolean; format: string; folder?: string; plugin?: string; } {
-        // Daily notes could come from either plugin
-        if (pluginExists(PERIODIC_NOTES)) {
-            // All other periods come from Periodic Notes
-            return getPeriodicNoteSettings(period);
-        }
-        else if (period === 'daily' && pluginExists(DAILY_NOTES)) {
-            return getDailyNoteSettings();
-        } else {
-            if (!this.plugin.settings[period]) {
-                this.plugin.settings[period] = DEFAULT_SETTINGS[period];
-            }
-            return this.plugin.settings[period];
-        }
-    }
+
 }
-
-
-//#region Utilities
-
-function validateMomentFormat(format: string): boolean {
-    try {
-        moment().format(format);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-//#endregion

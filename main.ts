@@ -1,7 +1,7 @@
 import { Plugin } from "obsidian";
 import { TimeBlockModal } from "./src/ui/TimeBlockModal";
 import { TimeBlockSettingsTab } from "./src/settings";
-import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type TimeBlockPlannerSettings } from "./src/utilities";
+import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period, type TimeBlockPlannerSettings } from "./src/utilities";
 
 export default class TimeBlockPlugin extends Plugin {
     settings: TimeBlockPlannerSettings;
@@ -29,40 +29,26 @@ export default class TimeBlockPlugin extends Plugin {
         if (!this.settings.monthly) {
             this.settings.monthly = DEFAULT_SETTINGS.monthly;
         }
-
-        // Import settings from Daily Notes or Periodic Notes if available
-        this.importExistingSettings();
-    }
-
-    private importExistingSettings() {
-        // Check for Periodic Notes plugin first
-        if (pluginExists(PERIODIC_NOTES)) {
-            const dailySettings = getPeriodicNoteSettings('daily');
-            if (dailySettings.format) {
-                this.settings.daily.format = dailySettings.folder + '/' + dailySettings.format;
-            }
-
-            const weeklySettings = getPeriodicNoteSettings('weekly');
-            if (weeklySettings.format) {
-                this.settings.weekly.format = weeklySettings.folder + '/' + weeklySettings.format;
-            }
-
-            const monthlySettings = getPeriodicNoteSettings('monthly');
-            if (monthlySettings.format) {
-                this.settings.monthly.format = monthlySettings.folder + '/' + monthlySettings.format;
-            }
-        }
-        // Fall back to Daily Notes plugin
-        else if (pluginExists(DAILY_NOTES)) {
-            const dailySettings = getDailyNoteSettings();
-            if (dailySettings.format) {
-                this.settings.daily.format = dailySettings.folder + '/' + dailySettings.format;
-            }
-        }
     }
 
     async saveSettings() {
         await this.saveData(this.settings);
+    }
+
+    public getSetting(period: Period): { enabled: boolean; format: string; folder?: string; plugin?: string; } {
+        // Daily notes could come from either plugin
+        if (pluginExists(PERIODIC_NOTES)) {
+            // All other periods come from Periodic Notes
+            return getPeriodicNoteSettings(period);
+        }
+        else if (period === 'daily' && pluginExists(DAILY_NOTES)) {
+            return getDailyNoteSettings();
+        } else {
+            if (!this.settings[period]) {
+                this.settings[period] = DEFAULT_SETTINGS[period];
+            }
+            return this.settings[period];
+        }
     }
 
     onunload() {
