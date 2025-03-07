@@ -1,4 +1,18 @@
-
+export function cleanSyntax(text: string): string {
+    return text
+        .replace(/^- \[\s+\] /, "") // Remove "- [ ] " at the beginning of tasks
+        .replace(/^[\s-*]*\[\s?[xX]?\s?\]\s*/, "") // Remove checkbox and leading bullet
+        .replace(/(\*\*|__)(.*?)\1/g, "$2") // Remove bold
+        .replace(/(\*|_)(.*?)\1/g, "$2") // Remove italics
+        .replace(/~~(.*?)~~/g, "$1") // Remove strikethrough
+        .trim();
+}
+export function cleanLinks(text: string): string {
+    // Handle wikilinks with aliases and markdown links
+    return text
+        .replace(/!?\[\[([^\]|]+)(\|.*?)?\]\]/g, (_, link) => link.trim())
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1");
+}
 type PlannerSetting = {
     plugin?: string;
     enabled: boolean;
@@ -67,7 +81,6 @@ export function getPeriodicNoteSettings(period: Period): NoteSettings {
         else if (settings.folder) format = `[${settings.folder}/]${settings.format}`;
         pluginName = PERIODIC_NOTES;
     }
-
 
     return { ...settings, format, plugin: pluginName };
 }
