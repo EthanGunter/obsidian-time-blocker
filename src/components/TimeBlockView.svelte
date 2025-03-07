@@ -1,7 +1,13 @@
 <script lang="ts">
 	import type TimeBlockPlugin from "main";
+	import CalendarDay from "./CalendarDay.svelte";
 	import { moment } from "obsidian";
 	import type { Period } from "src/utilities";
+
+	// TEMP SETTINGS STAND-INS
+	const TIME_RANGE = { start: 6, end: 22 }; // 6AM - 10PM
+	const INCREMENT = 30; // Minutes
+	const TIME_HEIGHT = 80; // px per hour
 
 	export let plugin: TimeBlockPlugin; // Receives settings from parent component
 
@@ -55,91 +61,66 @@
 </script>
 
 <div class="timeblock-container">
-	<h2>Time Block Planner</h2>
-	{#await periodTasks then tasks}
-		{#each tasks as taskList}
-			<div class="timeblock-period">
-				<h3>
-					{taskList.period.charAt(0).toUpperCase() +
-						taskList.period.slice(1)} Tasks
-				</h3>
-				<div class="timeblock-file-info">
-					<code>{taskList.filePath}</code>
-					{#if !taskList.exists}
-						<span class="timeblock-file-status"
-							>(File not found)</span
-						>
-					{/if}
+	<!-- <div class="timeblock-column tasks-panel">
+		<h3>Today's Tasks</h3>
+		{#await periodTasks then tasks}
+			{#if tasks.find((p) => p.period === "daily")?.tasks}
+				<div class="tasks-list">
+					{#each tasks.find((p) => p.period === "daily")?.tasks ?? [] as task}
+						<div class="setting-item task-item">
+							<div class="setting-item-info">
+								<div class="setting-item-name">{task}</div>
+							</div>
+						</div>
+					{/each}
 				</div>
+			{:else}
+				<div class="empty-state">No tasks found for today</div>
+			{/if}
+		{/await}
+	</div> -->
 
-				{#if taskList.tasks.length > 0}
-					<ul class="timeblock-task-list">
-						{#each taskList.tasks as task}
-							<li class="timeblock-task">{@html task}</li>
-						{/each}
-					</ul>
-				{:else}
-					<div class="timeblock-no-tasks">
-						No tasks found in this note
-					</div>
-				{/if}
-			</div>
-		{/each}
-	{/await}
+	<CalendarDay timeRange={TIME_RANGE} increment={INCREMENT} />
 </div>
 
-<style>
+<style lang="scss">
 	.timeblock-container {
-		padding: 20px;
+		display: flex;
+		gap: 2rem;
+		height: 100%;
+		padding: 1rem;
 	}
 
-	.timeblock-period {
-		margin: 15px 0;
-		padding: 10px;
-		border-bottom: 1px solid var(--background-modifier-border);
+	.timeblock-column {
+		flex: 1;
+		min-width: 0;
+		height: 100%;
 	}
 
-	h3 {
-		margin: 10px 0;
+	.tasks-panel {
+		max-width: 400px;
 	}
 
-	.timeblock-file-info {
-		margin: 8px 0;
-		font-size: 0.9em;
+	.tasks-list {
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 4px;
+		padding: 0.5rem;
+		margin-top: 1rem;
+	}
+
+	.task-item {
+		padding: 0.5rem;
+		border-radius: 4px;
+		margin: 2px 0;
+	}
+
+	.task-item:hover {
+		background-color: var(--background-modifier-hover);
+	}
+
+	.empty-state {
 		color: var(--text-muted);
-	}
-
-	.timeblock-file-status {
-		margin-left: 8px;
-		opacity: 0.8;
-	}
-
-	.timeblock-task-list {
-		margin: 10px 0;
-		padding-left: 20px;
-	}
-
-	.timeblock-task {
-		margin: 4px 0;
-		list-style-type: none;
-		position: relative;
-	}
-
-	.timeblock-task::before {
-		content: "☐";
-		position: absolute;
-		left: -20px;
-		color: var(--text-muted);
-	}
-
-	.timeblock-task[data-checked]::before {
-		content: "☑";
-		color: var(--text-accent);
-	}
-
-	.timeblock-no-tasks {
-		color: var(--text-faint);
-		font-style: italic;
-		margin: 8px 0;
+		padding: 1rem;
+		text-align: center;
 	}
 </style>

@@ -1,6 +1,6 @@
 import { App, moment, PluginSettingTab, Setting } from "obsidian";
-import TimeBlockPlugin from "../main";
-import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period } from "./utilities";
+import TimeBlockPlugin from "../../main";
+import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period } from "../utilities";
 
 const periods: Period[] = [
     'daily', 'weekly', 'monthly', 'quarterly', 'yearly'

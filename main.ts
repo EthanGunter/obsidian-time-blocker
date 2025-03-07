@@ -1,6 +1,7 @@
-import { Plugin } from "obsidian";
+import { Plugin, WorkspaceLeaf } from "obsidian";
 import { TimeBlockModal } from "./src/ui/TimeBlockModal";
-import { TimeBlockSettingsTab } from "./src/settings";
+import { TimeBlockSidebarView, VIEW_TYPE_TIMEBLOCK } from "./src/ui/TimeBlockSidebarView";
+import { TimeBlockSettingsTab } from "./src/ui/settings";
 import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period, type TimeBlockPlannerSettings } from "./src/utilities";
 
 export default class TimeBlockPlugin extends Plugin {
@@ -9,8 +10,22 @@ export default class TimeBlockPlugin extends Plugin {
     async onload() {
         await this.loadSettings();
 
-        this.addRibbonIcon("calendar-days", "Time Block Planner", () => {
+        // Register views
+        this.registerView(
+            VIEW_TYPE_TIMEBLOCK,
+            (leaf) => new TimeBlockSidebarView(leaf, this)
+        );
+
+        // Add ribbon icon for modal
+        this.addRibbonIcon("cuboid", "Time Block Planner", () => {
             new TimeBlockModal(this.app, this).open();
+        });
+
+        // Add command for sidebar view
+        this.addCommand({
+            id: 'show-timeblock-sidebar',
+            name: 'Show Time Block Sidebar',
+            callback: () => this.activateSidebarView()
         });
 
         this.addSettingTab(new TimeBlockSettingsTab(this.app, this));
@@ -52,7 +67,23 @@ export default class TimeBlockPlugin extends Plugin {
     }
 
     onunload() {
-        // Cleanup any resources if needed
+        this.app.workspace.detachLeavesOfType(VIEW_TYPE_TIMEBLOCK);
+    }
+
+    async activateSidebarView() {
+        const { workspace } = this.app;
+        let leaf: WorkspaceLeaf | null = null;
+        const leaves = workspace.getLeavesOfType(VIEW_TYPE_TIMEBLOCK);
+
+        if (leaves.length > 0) {
+            leaf = leaves[0];
+        } else {
+            leaf = workspace.getRightLeaf(false);
+            if (!leaf) return;
+            await leaf.setViewState({ type: VIEW_TYPE_TIMEBLOCK, active: true });
+        }
+
+        workspace.revealLeaf(leaf);
     }
 }
 
