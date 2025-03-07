@@ -1,6 +1,6 @@
 import { App, Modal } from "obsidian";
 import type TimeBlockPlugin from "../../main";
-import TimeBlockView from "../components/TimeBlockView.svelte";
+import TimeBlockView from "../components/ModalView.svelte";
 
 export class TimeBlockModal extends Modal {
   component: any = null;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type TimeBlockPlugin from "main";
-	import CalendarDay from "./CalendarDay.svelte";
+	import CalendarDay from "./Timeline.svelte";
 	import { moment } from "obsidian";
 	import type { Period } from "src/utilities";
 
@@ -61,7 +61,7 @@
 </script>
 
 <div class="timeblock-container">
-	<!-- <div class="timeblock-column tasks-panel">
+	<div class="timeblock-column tasks-panel">
 		<h3>Today's Tasks</h3>
 		{#await periodTasks then tasks}
 			{#if tasks.find((p) => p.period === "daily")?.tasks}
@@ -78,7 +78,7 @@
 				<div class="empty-state">No tasks found for today</div>
 			{/if}
 		{/await}
-	</div> -->
+	</div>
 
 	<CalendarDay timeRange={TIME_RANGE} increment={INCREMENT} />
 </div>

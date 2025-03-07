@@ -75,3 +75,4 @@ behaviorSettings: {
 # For AI agents
 1. Variables cannot be used in svelte <style> blocks. CSS variables must be used instead with <div style="--my-var: 1"> & var(--my-var)
 2. This plugin will be heavily used on mobile platforms as well as desktop, so design considerations should be made accordingly
+3. Prefer less code wherever possible. Use best programming practices, decouple systems, and build reusable components when possible.

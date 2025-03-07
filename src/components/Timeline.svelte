@@ -6,7 +6,10 @@
 	export let timeHeight: number = 80; // Default height per hour
 </script>
 
-<div class="timeline-panel" style="--time-height: {timeHeight}; --increment: {increment}">
+<div
+	class="timeline-panel"
+	style="--time-height: {timeHeight}; --increment: {increment}"
+>
 	<h3>Schedule</h3>
 	<div class="timeline-grid">
 		{#each Array.from( { length: (timeRange.end - timeRange.start) * (60 / increment) }, ) as _, i}
@@ -31,36 +34,29 @@
 </div>
 
 <style lang="scss">
-	.timeline-panel {
-		max-width: 400px;
-		overflow-y: auto;
-		padding-right: 0.5rem;
-	}
-
 	.timeline-grid {
 		display: grid;
 		grid-template-columns: 1fr;
-		gap: 2px;
 		margin-top: 1rem;
 	}
 
 	.timeline-slot {
-		display: flex;
+		display: grid;
+		grid-template-columns: 3em 1fr;
 		align-items: flex-start;
-		height: calc(var(--time-height) * (var(--increment) / 60) * 1px);
 		position: relative;
 		margin: 0 4px;
+		width: 100%;
 	}
 
 	.timeline-time {
-		width: 60px;
 		color: var(--text-muted);
 		font-size: 0.8em;
+		margin-top: calc(-1em / 2);
 	}
 
 	.timeline-block {
-		flex: 1;
-		outline: 1px solid var(--background-modifier-border);
-		height: 100%;
+		border: 2px solid var(--background-modifier-border);
+		height: 2rem;
 	}
 </style>

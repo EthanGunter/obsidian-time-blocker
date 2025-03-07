@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
-import CalendarDay from "../components/CalendarDay.svelte";
+import CalendarDay from "../components/Timeline.svelte";
 import type TimeBlockPlugin from "../../main";
 
 export const VIEW_TYPE_TIMEBLOCK = "timeblock-view";
