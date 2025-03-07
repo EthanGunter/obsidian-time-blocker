@@ -2,6 +2,7 @@
 	import { moment } from "obsidian";
 	import { cleanLinks, cleanSyntax, type Period } from "../utilities";
 	import type TimeBlockPlugin from "../../main";
+	import Draggable from "./Draggable.svelte";
 
 	export let plugin: TimeBlockPlugin;
 	export let period: Period = "daily";
@@ -26,8 +27,6 @@
 		const tasks = Array.from(taskSection.matchAll(taskRegex)).map(
 			(x) => x[0],
 		);
-
-		console.log(tasks);
 
 		return tasks.map((task) => {
 			return cleanSyntax(cleanLinks(task));
@@ -81,9 +80,11 @@
 	{:else}
 		<div class="task-list">
 			{#each tasks as task}
-				<div class="task-item">
-					{task}
-				</div>
+				<Draggable data={task} type="task">
+					<div class="task-item">
+						{task}
+					</div>
+				</Draggable>
 			{/each}
 		</div>
 	{/if}

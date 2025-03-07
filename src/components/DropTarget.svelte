@@ -1,0 +1,59 @@
+<script lang="ts">
+  import { createEventDispatcher } from "svelte";
+  import { dropzone } from "../lib/dnd";
+  
+  export let accepts: string[] = ["generic"];
+  export let effect: 'move' | 'copy' = 'move';
+  export let hoverClass = 'drop-active';
+  
+  const dispatch = createEventDispatcher<{
+    drop: unknown;
+    error: Error;
+  }>();
+  
+  let isActive = false;
+
+  function handleDrop(data: unknown, event: DragEvent) {
+    isActive = false;
+    dispatch('drop', data);
+  }
+  
+  function handleDragEnter() {
+    isActive = true;
+  }
+  
+  function handleDragLeave() {
+    isActive = false;
+  }
+</script>
+
+<div
+  class="drop-target"
+  class:active={isActive}
+  use:dropzone={{ 
+    accept: accepts, 
+    effect, 
+    onDrop: handleDrop, 
+    hoverClass 
+  }}
+  on:dragenter={handleDragEnter}
+  on:dragleave={handleDragLeave}
+>
+  <slot {isActive} />
+</div>
+
+<style>
+  .drop-target {
+    transition: background-color 0.2s ease;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .drop-target.active {
+    background-color: var(--color-accent-alpha);
+  }
+  
+  :global(.drop-active) {
+    background-color: var(--background-modifier-hover);
+  }
+</style>

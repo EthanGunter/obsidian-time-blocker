@@ -66,6 +66,12 @@ export const DAILY_NOTES = "daily-notes";
 
 export type Period = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
+declare global {
+    interface HTMLElementEventMap {
+        'itemdropped': CustomEvent<{ type: string; data: unknown }>;
+    }
+}
+
 export function pluginExists(pluginId: string): boolean {
     return getPluginInstance(pluginId) != null;
 }

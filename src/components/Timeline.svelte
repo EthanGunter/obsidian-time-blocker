@@ -1,30 +1,39 @@
 <script lang="ts">
 	import { moment } from "obsidian";
+	import DropTarget from "./DropTarget.svelte";
 
 	export let timeRange: { start: number; end: number };
 	export let increment: number;
+
+	function handleTaskDrop(event: CustomEvent) {
+		const data = event.detail;
+		console.log("Task dropped:", data);
+		// Add to timeline logic here
+	}
 </script>
 
 <div class="timeline">
 	<h3>Schedule</h3>
 	<div class="timeline-grid">
 		{#each Array.from( { length: (timeRange.end - timeRange.start) * (60 / increment) }, ) as _, i}
-			<div class="timeline-slot">
-				{#if (i * increment) % 60 === 0}
-					<div class="timeline-time">
-						{moment()
-							.startOf("day")
-							.add(
-								timeRange.start * 60 + i * increment,
-								"minutes",
-							)
-							.format("h A")}
-					</div>
-				{:else}
-					<div class="timeline-time"></div>
-				{/if}
-				<div class="timeline-block"></div>
-			</div>
+			<DropTarget accepts={["task"]} on:drop={handleTaskDrop}>
+				<div class="timeline-slot">
+					{#if (i * increment) % 60 === 0}
+						<div class="timeline-time">
+							{moment()
+								.startOf("day")
+								.add(
+									timeRange.start * 60 + i * increment,
+									"minutes",
+								)
+								.format("h A")}
+						</div>
+					{:else}
+						<div class="timeline-time"></div>
+					{/if}
+					<div class="timeline-block"></div>
+				</div>
+			</DropTarget>
 		{/each}
 	</div>
 </div>
