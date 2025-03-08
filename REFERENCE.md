@@ -76,3 +76,18 @@ behaviorSettings: {
 1. Variables cannot be used in svelte <style> blocks. CSS variables must be used instead with <div style="--my-var: 1"> & var(--my-var)
 2. This plugin will be heavily used on mobile platforms as well as desktop, so design considerations should be made accordingly
 3. Prefer less code wherever possible. Use best programming practices, decouple systems, and build reusable components when possible.
+
+## Useful documentation pages
+### Obsidian
+- Workspace layout: https://docs.obsidian.md/Plugins/User+interface/Workspace
+- Settings: https://docs.obsidian.md/Plugins/User+interface/Settings
+- Accessing files: https://docs.obsidian.md/Plugins/Vault
+- Hooking in to events: https://docs.obsidian.md/Plugins/Events
+- Views: https://docs.obsidian.md/Plugins/User+interface/Views
+- Modals: https://docs.obsidian.md/Plugins/User+interface/Modals
+- Ribbon actions: https://docs.obsidian.md/Plugins/User+interface/Ribbon+actions
+- Right-to-left accessibility: https://docs.obsidian.md/Plugins/User+interface/Right-to-left
+
+#### Submission and requirements
+- Overview: https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin
+- Requirements: https://docs.obsidian.md/Plugins/Releasing/Submission+requirements+for+plugins & https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
