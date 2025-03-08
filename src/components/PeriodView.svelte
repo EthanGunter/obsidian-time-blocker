@@ -1,68 +1,32 @@
 <script lang="ts">
 	import { moment } from "obsidian";
-	import { cleanLinks, cleanSyntax, type Period } from "../utilities";
+	import { parseTask } from "../lib/settingsUtilities";
 	import type TimeBlockPlugin from "../../main";
 	import Draggable from "./Draggable.svelte";
+	import { pluginStore } from "src/stores/plugin";
+	import { getTasksFrom, parseTasks } from "src/lib/taskUtilities";
 
-	export let plugin: TimeBlockPlugin;
 	export let period: Period = "daily";
-	export let taskHeader: string = "plans for the day";
 
 	let isLoading = false;
-	let tasks: string[] = [];
-	let fileInfo: {
-		exists: boolean;
-		path: string;
-		lastModified: string;
-	} | null = null;
+	let tasks: TaskData[] = [];
+	let filepath: string = "";
 
-	function parseTasks(text: string, header: string): string[] {
-		const sectionRegex =
-			/(^#{1,6} Plans for the day\n)([.\n\s\S]*)(\n#)/gim;
-		const taskRegex = /^(\s*)[-*]\s+\[([ xX])\](.+)$/gm;
-
-		const taskSection = text.match(sectionRegex)?.[0];
-		if (!taskSection) throw new Error("No tasks section found");
-
-		const tasks = Array.from(taskSection.matchAll(taskRegex)).map(
-			(x) => x[0],
-		);
-
-		return tasks.map((task) => {
-			return cleanSyntax(cleanLinks(task));
-		});
-	}
+	let plugin: TimeBlockPlugin;
+	pluginStore.subscribe((value) => (plugin = value));
 
 	async function loadTasks() {
 		isLoading = true;
-		const setting = plugin.getSetting(period);
+		const setting = plugin.getPeriodSetting(period);
 
-		if (!setting?.enabled) {
-			isLoading = false;
-			return;
-		}
+		filepath = moment().format(setting.format) + ".md";
 
-		const filePath = moment().format(setting.format) + ".md";
-		const file = window.app.vault.getAbstractFileByPath(filePath);
-
-		fileInfo = {
-			exists: !!file,
-			path: filePath,
-			lastModified: file ? moment(file.stat.mtime).fromNow() : "Never",
-		};
-
-		if (file) {
-			const content = await window.app.vault.read(file);
-			tasks = parseTasks(content, taskHeader);
-		} else {
-			tasks = [];
-		}
-
+		tasks = await getTasksFrom(filepath);
 		isLoading = false;
 	}
 
 	// Load tasks when component mounts or period changes
-	$: if (period) loadTasks();
+	loadTasks();
 </script>
 
 <div class="period-view">
@@ -70,19 +34,19 @@
 
 	{#if isLoading}
 		<div class="loading">Loading tasks...</div>
-	{:else if !plugin.getSetting(period)?.enabled}
+	{:else if !plugin.getPeriodSetting(period)?.enabled}
 		<div class="empty-state">This period is not enabled in settings</div>
 	{:else if tasks.length === 0}
 		<div class="empty-state">
 			No tasks found in<br />
-			<code>{fileInfo?.path}</code>
+			<code>{filepath}</code>
 		</div>
 	{:else}
 		<div class="task-list">
 			{#each tasks as task}
 				<Draggable data={task} type="task">
 					<div class="task-item">
-						{task}
+						{task.content}
 					</div>
 				</Draggable>
 			{/each}
@@ -90,8 +54,7 @@
 	{/if}
 
 	<div class="file-info">
-		File: {fileInfo?.path}<br />
-		Last modified: {fileInfo?.lastModified}
+		File: {filepath}<br />
 	</div>
 </div>
 

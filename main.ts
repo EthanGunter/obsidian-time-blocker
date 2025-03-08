@@ -2,10 +2,12 @@ import { Plugin, WorkspaceLeaf } from "obsidian";
 import { TimeBlockModal } from "./src/ui/TimeBlockModal";
 import { TimeBlockSidebarView, VIEW_TYPE_TIMEBLOCK } from "./src/ui/TimeBlockSidebarView";
 import { TimeBlockSettingsTab } from "./src/ui/settings";
-import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period, type TimeBlockPlannerSettings } from "./src/utilities";
+import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./src/lib/settingsUtilities";
+import { pluginStore } from "src/stores/plugin";
 
+export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {
-    settings: TimeBlockPlannerSettings;
+    public settings: TimeBlockPlannerSettings;
 
     async onload() {
         await this.loadSettings();
@@ -29,28 +31,19 @@ export default class TimeBlockPlugin extends Plugin {
         });
 
         this.addSettingTab(new TimeBlockSettingsTab(this.app, this));
+
+        pluginStore.set(this);
     }
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-
-        // Ensure all settings properties exist
-        if (!this.settings.daily) {
-            this.settings.daily = DEFAULT_SETTINGS.daily;
-        }
-        if (!this.settings.weekly) {
-            this.settings.weekly = DEFAULT_SETTINGS.weekly;
-        }
-        if (!this.settings.monthly) {
-            this.settings.monthly = DEFAULT_SETTINGS.monthly;
-        }
     }
 
     async saveSettings() {
         await this.saveData(this.settings);
     }
 
-    public getSetting(period: Period): { enabled: boolean; format: string; folder?: string; plugin?: string; } {
+    public getPeriodSetting(period: Period): { enabled: boolean; format: string; folder?: string; plugin?: string; } {
         // Daily notes could come from either plugin
         if (pluginExists(PERIODIC_NOTES)) {
             // All other periods come from Periodic Notes
@@ -59,10 +52,10 @@ export default class TimeBlockPlugin extends Plugin {
         else if (period === 'daily' && pluginExists(DAILY_NOTES)) {
             return getDailyNoteSettings();
         } else {
-            if (!this.settings[period]) {
-                this.settings[period] = DEFAULT_SETTINGS[period];
+            if (!this.settings.periodFileFormats[period]) {
+                this.settings.periodFileFormats[period] = DEFAULT_SETTINGS.periodFileFormats[period];
             }
-            return this.settings[period];
+            return this.settings.periodFileFormats[period];
         }
     }
 
@@ -87,7 +80,11 @@ export default class TimeBlockPlugin extends Plugin {
     }
 }
 
+
 declare global {
+    interface HTMLElementEventMap {
+        'itemdropped': CustomEvent<{ type: string; data: unknown }>;
+    }
     interface Window {
         app?: any;
     }

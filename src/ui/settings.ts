@@ -1,6 +1,6 @@
 import { App, moment, PluginSettingTab, Setting } from "obsidian";
-import TimeBlockPlugin from "../../main";
-import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists, type Period } from "../utilities";
+import TimeBlockPlugin, { PLUGIN_NAME } from "../../main";
+import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "../lib/settingsUtilities";
 
 const periods: Period[] = [
     'daily', 'weekly', 'monthly', 'quarterly', 'yearly'
@@ -39,6 +39,23 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
             });
         }
 
+        const taskHeaderName = new Setting(containerEl)
+            .setName("Task Header Name")
+            .setTooltip(`The name of the header ${PLUGIN_NAME} will look for tasks under`)
+            .addText(textField => {
+                textField
+                    .setValue(this.plugin.settings.taskHeaderName)
+                    .onChange(async value => {
+                        if (validateTaskHeaderValue(value)) {
+                            this.plugin.settings.taskHeaderName = value;
+                            await this.plugin.saveSettings();
+                            taskHeaderName.setDesc("");
+                        } else {
+                            taskHeaderName.setDesc("header name is invalid");
+                        }
+                    });
+            })
+
         for (let i = 0; i < periods.length; i++) {
             const period = periods[i];
             this.createPeriodSection(period);
@@ -47,11 +64,11 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
 
     private createPeriodSection(period: Period) {
         const section = this.containerEl.createDiv('timeblock-period-section');
-        const pluginSettings = this.plugin.getSetting(period);
+        const pluginSettings = this.plugin.getPeriodSetting(period);
 
         const managedBy = pluginSettings.plugin
 
-        let format = this.plugin.settings[period].format;
+        let format = this.plugin.settings.periodFileFormats[period].format;
 
         // Add managed state class to section
         if (managedBy) {
@@ -59,14 +76,14 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
         }
 
         // Content area
-        if (!this.plugin.settings[period].enabled) {
+        if (!this.plugin.settings.periodFileFormats[period].enabled) {
             const headerSetting = new Setting(section)
                 .setName(`${period} Tasks`)
                 .setHeading();
             headerSetting.addToggle(toggle => toggle
-                .setValue(this.plugin.settings[period].enabled)
+                .setValue(this.plugin.settings.periodFileFormats[period].enabled)
                 .onChange(async value => {
-                    this.plugin.settings[period].enabled = value;
+                    this.plugin.settings.periodFileFormats[period].enabled = value;
                     await this.plugin.saveSettings();
                     this.display(); // Refresh to show/hide content
                 }));
@@ -75,9 +92,9 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
                 .setName(`${period} Tasks`)
                 .setHeading()
                 .addToggle(toggle => toggle
-                    .setValue(this.plugin.settings[period].enabled)
+                    .setValue(this.plugin.settings.periodFileFormats[period].enabled)
                     .onChange(async value => {
-                        this.plugin.settings[period].enabled = value;
+                        this.plugin.settings.periodFileFormats[period].enabled = value;
                         await this.plugin.saveSettings();
                         this.display(); // Refresh to show/hide content
                     }));
@@ -89,7 +106,7 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
                     .setValue(format)
                     .setDisabled(!!managedBy)
                     .onChange(async (value) => {
-                        this.plugin.settings[period].format = value;
+                        this.plugin.settings.periodFileFormats[period].format = value;
                         await this.plugin.saveSettings();
 
                         // Update the description text directly instead of refreshing whole UI
@@ -105,4 +122,8 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
     }
 
 
+}
+
+function validateTaskHeaderValue(value: string): boolean {
+    return !!value;
 }

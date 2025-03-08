@@ -90,4 +90,4 @@ behaviorSettings: {
 
 #### Submission and requirements
 - Overview: https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin
-- Requirements: https://docs.obsidian.md/Plugins/Releasing/Submission+requirements+for+plugins & https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
+- Requirements: https://docs.obsidian.md/Plugins/Releasing/Submission+requirements+for+plugins & https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelinesf

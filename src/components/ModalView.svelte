@@ -3,7 +3,6 @@
 	import Timeline from "./Timeline.svelte";
 	import PeriodView from "./PeriodView.svelte";
 	import { moment } from "obsidian";
-	import type { Period } from "src/utilities";
 
 	// TEMP SETTINGS STAND-INS
 	const TIME_RANGE = { start: 6, end: 22 }; // 6AM - 10PM
@@ -14,7 +13,7 @@
 
 <div class="timeblock-container">
 	<PeriodView {plugin} period="daily" />
-	<Timeline timeRange={TIME_RANGE} increment={INCREMENT} />
+	<Timeline timeRange={TIME_RANGE} increment={INCREMENT} {plugin} />
 </div>
 
 <style lang="scss">

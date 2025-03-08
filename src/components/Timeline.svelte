@@ -1,14 +1,53 @@
 <script lang="ts">
 	import { moment } from "obsidian";
 	import DropTarget from "./DropTarget.svelte";
+	import { updateTaskInFile, serializeTask } from "src/lib/taskUtilities";
+	import type TimeBlockPlugin from "main";
+	export let plugin: TimeBlockPlugin; // Receive plugin prop from parent
 
 	export let timeRange: { start: number; end: number };
 	export let increment: number;
 
-	function handleTaskDrop(event: CustomEvent) {
-		const data = event.detail;
-		console.log("Task dropped:", data);
-		// Add to timeline logic here
+	async function handleTaskDrop(event: CustomEvent) {
+		const { data: task, context } = event.detail;
+		const start = moment(context.date + "T" + context.time);
+		const end = start.clone().add(context.increment, "minutes");
+
+		// Create new scheduled task metadata
+		const updatedTask = {
+			raw: task.raw,
+			content: task.content,
+			metadata: {
+				...task.metadata,
+				scheduled: {
+					start: start.toISOString(),
+					end: end.toISOString(),
+				},
+			},
+		};
+
+		// Update original file
+		const success = await updateTaskInFile(
+			task.metadata.movedFrom || "", // Use original file path if available
+			task.raw,
+			serializeTask(updatedTask),
+		);
+
+		if (success && plugin.settings.behaviorSettings.deleteTasksWhenMoving) {
+			// Archive original task
+			const archivedTask = {
+				...task,
+				metadata: {
+					...task.metadata,
+					archived: new Date().toISOString(),
+				},
+			};
+			await updateTaskInFile(
+				task.metadata.movedFrom || "",
+				task.raw,
+				serializeTask(archivedTask),
+			);
+		}
 	}
 </script>
 
