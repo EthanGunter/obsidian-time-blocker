@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { moment } from "obsidian";
+	import { moment, Notice } from "obsidian";
 	import type TimeBlockPlugin from "../../main";
 	import Draggable from "./Draggable.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { getTasksFrom } from "src/lib/taskUtilities";
 	import TaskView from "./TaskView.svelte";
+	import type { Period, TaskData } from "src/lib/types";
 
 	export let period: Period = "daily";
 
@@ -20,8 +21,24 @@
 		const setting = plugin.getPeriodSetting(period);
 
 		filepath = moment().format(setting.format) + ".md";
+		const file = plugin.app.metadataCache.getFirstLinkpathDest(
+			filepath,
+			"",
+		);
 
-		tasks = await getTasksFrom(filepath);
+		if (!file) {
+			new Notice(`Could not find ${filepath}`);
+			tasks = [];
+			return;
+		}
+
+		try {
+			tasks = await getTasksFrom(filepath);
+		} catch (e) {
+			new Notice("Failed to load tasks. Check console for details.");
+			console.error("[TimeBlock] Task load error:", e);
+			tasks = [];
+		}
 		isLoading = false;
 	}
 

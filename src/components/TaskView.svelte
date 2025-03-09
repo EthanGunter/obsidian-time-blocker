@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { TaskData } from "src/lib/types";
+
 	export let task: TaskData;
 
 	function handleMove(direction: "up" | "down" | "discard") {

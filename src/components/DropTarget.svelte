@@ -5,10 +5,10 @@
 	export let accepts: string[] = ["generic"];
 	export let effect: "move" | "copy" = "move";
 	export let hoverClass = "drop-active";
-	export let enabled = true;
+	export let context: unknown;
 
 	const dispatch = createEventDispatcher<{
-		drop: unknown;
+		drop: { data: unknown; context: unknown };
 		error: Error;
 	}>();
 
@@ -16,7 +16,7 @@
 
 	function handleDrop(data: unknown, event: DragEvent) {
 		isActive = false;
-		dispatch("drop", data);
+		dispatch("drop", { data, context });
 	}
 
 	function handleDragEnter() {

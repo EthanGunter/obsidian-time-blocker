@@ -24,6 +24,9 @@
   use:draggable={{ data, type, effect, dragClass }}
   on:dragstart={handleDragStart}
   on:dragend={handleDragEnd}
+  on:touchstart={handleDragStart}
+  on:touchend={handleDragEnd}
+  on:touchcancel={handleDragEnd}
 >
   <slot {isDragging} />
 </div>

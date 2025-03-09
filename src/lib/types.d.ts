@@ -1,3 +1,5 @@
+import type { Tasks } from "obsidian"
+
 interface TimeBlockPlannerSettings {
     periodFileFormats: {
         daily: PlannerSetting
@@ -19,15 +21,14 @@ interface PlannerSetting {
     format: string;
 }
 
-
+type TaskStatus = "active" | "in-progress" | "completed" | "canceled";
 interface TaskData {
     raw: string;
     content: string;
     metadata: {
         scheduled?: { start: Moment; end: Moment };
         archived?: Moment;
-        completed: boolean
-        // fromFile: string
+        status: TaskStatus;
     }
 }
 

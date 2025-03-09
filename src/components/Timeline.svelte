@@ -2,10 +2,15 @@
 	import { moment } from "obsidian";
 	import DropTarget from "./DropTarget.svelte";
 	import type TimeBlockPlugin from "main";
-	import { getTasksFrom } from "src/lib/taskUtilities";
+	import {
+		getTasksFrom,
+		updateTaskInFile,
+		serializeTask,
+	} from "src/lib/taskUtilities";
 	import TaskTimelineView from "./TaskTimelineView.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
+	import type { TaskData } from "src/lib/types";
 
 	export let droppable: boolean | undefined;
 
@@ -24,6 +29,8 @@
 	pluginStore.subscribe((value) => (plugin = value));
 	let scheduledTasks: TaskData[] = [];
 
+	import { Notice } from "obsidian";
+
 	async function loadScheduledTasks() {
 		// Get today's file path using daily format
 		const dailyFormat = plugin.getPeriodSetting("daily").format;
@@ -34,7 +41,10 @@
 
 			scheduledTasks = tasks.filter((t) => t.metadata.scheduled);
 		} catch (e) {
-			console.error("Failed to load scheduled tasks:", e);
+			new Notice(
+				"Failed to load scheduled tasks. Check console for details.",
+			);
+			console.error("[TimeBlock] Failed to load scheduled tasks:", e);
 			scheduledTasks = [];
 		}
 	}
@@ -59,15 +69,6 @@
 		// Convert to grid units
 		const unitsFromTop = startOffset / BLOCK_SPAN;
 		const durationUnits = duration / BLOCK_SPAN;
-
-		console.log(
-			timeRange.start.hour(),
-			startOffset,
-			startTime.hour(),
-			duration,
-			unitsFromTop,
-			durationUnits,
-		);
 
 		return {
 			top: `${unitsFromTop * BLOCK_HEIGHT}rem`,
@@ -95,13 +96,46 @@
 		});
 	}
 
-	async function scheduleTask(task: TaskData) {
-		// TODO: Implement scheduling logic
+	async function scheduleTask(task: TaskData, slotTime: moment.Moment) {
+		console.log(
+			"Scheduling task:",
+			task.content,
+			slotTime.toLocaleString(),
+		);
+
+		const start = slotTime.clone();
+		const end = start.clone().add(BLOCK_SPAN, "minutes");
+
+		// Create updated task with new schedule
+		const updatedTask: TaskData = {
+			...task,
+			metadata: {
+				...task.metadata,
+				scheduled: { start, end },
+			},
+		};
+
+		// Get current daily note path
+		const dailyFormat = plugin.getPeriodSetting("daily").format;
+		const filepath = moment().format(dailyFormat) + ".md";
+
+		// Update in vault
+		const success = await updateTaskInFile(
+			filepath,
+			task.raw,
+			`${serializeTask(updatedTask)}`,
+		);
+
+		if (success) {
+			// Refresh displayed tasks
+			await loadScheduledTasks();
+		}
 	}
 
 	async function handleTaskDrop(event: CustomEvent) {
-		const { data: task, context } = event.detail;
-		scheduleTask(task);
+		const { data: task, context: slotTime } = event.detail;
+
+		scheduleTask(task, slotTime);
 	}
 </script>
 
@@ -114,6 +148,7 @@
 				accepts={["task"]}
 				on:drop={handleTaskDrop}
 				enabled={droppable}
+				context={slot.time}
 			>
 				<div class="timeline-time">
 					{#if slot.isHourMark}
@@ -141,8 +176,8 @@
 <style lang="scss">
 	.timeline-grid {
 		position: relative;
-		// overflow-y: scroll;
-		// overflow-x: hidden;
+		overflow-y: scroll;
+		overflow-x: hidden;
 		margin-bottom: 1rem;
 
 		/* Scrollbar styling */
@@ -172,8 +207,8 @@
 		box-sizing: border-box;
 		border-top: 1px solid var(--background-modifier-border);
 		border-bottom: 1px solid var(--background-modifier-border);
-		border-right: 2px solid var(--background-modifier-border);
-		border-left: 2px solid var(--background-modifier-border);
+		border-inline-end: 2px solid var(--background-modifier-border);
+		border-inline-start: 2px solid var(--background-modifier-border);
 		height: 2rem;
 	}
 </style>

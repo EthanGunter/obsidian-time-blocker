@@ -4,6 +4,7 @@ import { TimeBlockSidebarView, VIEW_TYPE_TIMEBLOCK } from "./src/ui/TimeBlockSid
 import { TimeBlockSettingsTab } from "./src/ui/settings";
 import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./src/lib/settingsUtilities";
 import { pluginStore } from "src/stores/plugin";
+import type { Period, TimeBlockPlannerSettings } from "src/lib/types";
 
 export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {

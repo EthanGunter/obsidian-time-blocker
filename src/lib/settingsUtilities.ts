@@ -1,4 +1,7 @@
+import { get } from "svelte/store";
 import { moment } from "obsidian";
+import { pluginStore } from "src/stores/plugin";
+import type { TimeBlockPlannerSettings, Period } from "./types";
 
 
 export const DEFAULT_SETTINGS: TimeBlockPlannerSettings = {
@@ -81,7 +84,7 @@ export function getDailyNoteSettings()/* : NoteSettings */ {
 /** Get plugin instance by ID from Obsidian's plugin registry */
 function getPluginInstance(pluginId: string): any | null {
     // Extend Window type to include Obsidian's app property
-    const app = window.app as Record<string, any>;
+    const app = get(pluginStore).app as Record<string, any>;
     return app?.plugins?.getPlugin(pluginId) || null;
 }
 
