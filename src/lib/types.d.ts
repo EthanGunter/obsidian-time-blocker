@@ -24,8 +24,8 @@ interface TaskData {
     raw: string;
     content: string;
     metadata: {
-        scheduled?: { start: string; end: string };
-        archived?: string;
+        scheduled?: { start: Moment; end: Moment };
+        archived?: Moment;
         completed: boolean
         // fromFile: string
     }

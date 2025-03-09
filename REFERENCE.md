@@ -47,8 +47,8 @@
    
    - **Archive Marker**: Uses cancelled date emoji with timestamp  
      `❌ 2025-03-07`
-   - **Time Blocking**: Scheduled date emoji with time range  
-     `⏳ 2025-03-07 14:00-15:30`
+   - **Time Blocking**: Scheduled time range  
+     `@14:00-15:30`
 
 3. **Configuration Interface with Defaults**
 ```ts
@@ -75,10 +75,26 @@ behaviorSettings: {
 # For AI agents
 1. Variables cannot be used in svelte <style> blocks. CSS variables must be used instead with <div style="--my-var: 1"> & var(--my-var)
 2. This plugin will be heavily used on mobile platforms as well as desktop, so design considerations should be made accordingly
-3. Prefer less code wherever possible. Use best programming practices, decouple systems, and build reusable components when possible.
+3. When creating components, prefer as minimal styling as possible. Layout only to begin with. We'll do a styling pass once all the logic & UX is established
+
+## Currently working on
+// Regularly update this section with the current objective at the top, and tasks that have been postponed in favor of an MVP status below that.
+1. Daily time-blocking functionality
+    - [ ] Visual timeline with scheduled task blocks
+    - [ ] Basic drag-to-schedule interaction
+    - [ ] File change synchronization
+
+ Postponed for MVP:
+ - Touch drag and drop
+ - Multi-period navigation
+ - Task movement between periods
+ - Scheduled time conflict resolution
+ - Obsidian syntax abstraction
+
 
 ## Useful documentation pages
 ### Obsidian
+- Plugin guidelines & best practices: https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
 - Workspace layout: https://docs.obsidian.md/Plugins/User+interface/Workspace
 - Settings: https://docs.obsidian.md/Plugins/User+interface/Settings
 - Accessing files: https://docs.obsidian.md/Plugins/Vault
@@ -90,4 +106,4 @@ behaviorSettings: {
 
 #### Submission and requirements
 - Overview: https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin
-- Requirements: https://docs.obsidian.md/Plugins/Releasing/Submission+requirements+for+plugins & https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelinesf
+- Requirements: https://docs.obsidian.md/Plugins/Releasing/Submission+requirements+for+plugins

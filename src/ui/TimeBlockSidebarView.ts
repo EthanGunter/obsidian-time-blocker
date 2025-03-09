@@ -26,17 +26,10 @@ export class TimeBlockSidebarView extends ItemView {
     }
 
     async onOpen() {
-        // TEMP SETTINGS STAND-INS
-        const TIME_RANGE = { start: 6, end: 22 };
-        const INCREMENT = 30;
-        const TIME_HEIGHT = 80;
-
         this.component = new CalendarDay({
             target: this.containerEl.children[1],
             props: {
-                timeRange: TIME_RANGE,
-                increment: INCREMENT,
-                timeHeight: TIME_HEIGHT
+                droppable: false
             }
         });
     }

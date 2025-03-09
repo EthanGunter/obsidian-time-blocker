@@ -7,7 +7,7 @@ import { pluginStore } from "src/stores/plugin";
 
 export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {
-    public settings: TimeBlockPlannerSettings;
+    settings: TimeBlockPlannerSettings;
 
     async onload() {
         await this.loadSettings();

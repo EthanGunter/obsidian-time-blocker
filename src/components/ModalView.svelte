@@ -1,19 +1,11 @@
 <script lang="ts">
-	import type TimeBlockPlugin from "main";
 	import Timeline from "./Timeline.svelte";
 	import PeriodView from "./PeriodView.svelte";
-	import { moment } from "obsidian";
-
-	// TEMP SETTINGS STAND-INS
-	const TIME_RANGE = { start: 6, end: 22 }; // 6AM - 10PM
-	const INCREMENT = 30; // Minutes
-
-	export let plugin: TimeBlockPlugin; // Receives settings from parent component
 </script>
 
 <div class="timeblock-container">
-	<PeriodView {plugin} period="daily" />
-	<Timeline timeRange={TIME_RANGE} increment={INCREMENT} {plugin} />
+	<PeriodView period="daily" />
+	<Timeline droppable />
 </div>
 
 <style lang="scss">

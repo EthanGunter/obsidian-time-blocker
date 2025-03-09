@@ -1,5 +1,4 @@
 import { moment } from "obsidian";
-import { arch } from "os";
 import { pluginStore } from "src/stores/plugin";
 import { get } from "svelte/store";
 
@@ -55,7 +54,7 @@ export function parseTasks(text: string): string[] {
         taskString += text.substring(0, match?.index);
     }
 
-    return taskString.split('\n');
+    return taskString.split('\n').filter(task => task.startsWith('- [ ]'));
 }
 
 export function serializeTask(task: TaskData): string {
@@ -74,7 +73,7 @@ export function serializeTask(task: TaskData): string {
 
 
 // Metadata patterns
-const SCHEDULE_REGEX = /⏳ (\d{4}-\d{2}-\d{2} \d{2}:\d{2}-\d{2}:\d{2})/;
+const SCHEDULE_REGEX = /@(\d{1,2}:\d{2}[ap]?-\d{1,2}:\d{2}[ap]?)/;
 const ARCHIVE_REGEX = /❌ (\d{4}-\d{2}-\d{2})/;
 
 export function deserializeTask(task: string): TaskData {
@@ -84,10 +83,11 @@ export function deserializeTask(task: string): TaskData {
     };
 
     const scheduleMatch = task.match(SCHEDULE_REGEX);
+
     const scheduled = scheduleMatch && {
         scheduled: {
-            start: moment(scheduleMatch[1].split(' ')[0] + 'T' + scheduleMatch[1].split(' ')[1].split('-')[0]).toISOString(),
-            end: moment(scheduleMatch[1].split(' ')[0] + 'T' + scheduleMatch[1].split(' ')[1].split('-')[1]).toISOString()
+            start: moment(scheduleMatch[1].split('-')[0], "HH:mma"),
+            end: moment(scheduleMatch[1].split('-')[1], "HH:mma")
         }
     };
 

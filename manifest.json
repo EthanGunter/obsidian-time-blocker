@@ -2,7 +2,7 @@
 	"id": "obsidian-timeblock-planner",
 	"name": "Time Block Planner",
 	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
+	"minAppVersion": "1.0.0",
 	"description": "Plan your day with time blocks in Obsidian",
 	"author": "Ethan Gunter",
 	"authorUrl": "https://flolu.de",

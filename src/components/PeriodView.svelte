@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { moment } from "obsidian";
-	import { parseTask } from "../lib/settingsUtilities";
 	import type TimeBlockPlugin from "../../main";
 	import Draggable from "./Draggable.svelte";
 	import { pluginStore } from "src/stores/plugin";
-	import { getTasksFrom, parseTasks } from "src/lib/taskUtilities";
+	import { getTasksFrom } from "src/lib/taskUtilities";
+	import TaskView from "./TaskView.svelte";
 
 	export let period: Period = "daily";
 
@@ -30,7 +30,11 @@
 </script>
 
 <div class="period-view">
-	<h3>{period.charAt(0).toUpperCase() + period.slice(1)} Tasks</h3>
+	<h3 class="period-title">
+		{period.charAt(0).toUpperCase() + period.slice(1)}
+		Tasks
+		<span class="file-info"> File: {filepath}</span>
+	</h3>
 
 	{#if isLoading}
 		<div class="loading">Loading tasks...</div>
@@ -45,17 +49,11 @@
 		<div class="task-list">
 			{#each tasks as task}
 				<Draggable data={task} type="task">
-					<div class="task-item">
-						{task.content}
-					</div>
+					<TaskView {task} />
 				</Draggable>
 			{/each}
 		</div>
 	{/if}
-
-	<div class="file-info">
-		File: {filepath}<br />
-	</div>
 </div>
 
 <style lang="scss">
@@ -84,9 +82,11 @@
 		text-align: center;
 	}
 
-	.file-info {
-		margin-top: 1rem;
-		font-size: 0.8em;
-		color: var(--text-muted);
+	.period-title {
+		display: flex;
+		.file-info {
+			font-size: 0.6em;
+			color: var(--text-muted);
+		}
 	}
 </style>
