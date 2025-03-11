@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { moment } from "obsidian";
-	import DropTarget from "./DropTarget.svelte";
 	import type TimeBlockPlugin from "main";
 	import {
 		getTasksFrom,
@@ -11,6 +10,7 @@
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
 	import type { TaskData } from "src/lib/types";
+	import { dropzone } from "src/lib/dnd";
 
 	export let droppable: boolean | undefined;
 
@@ -19,6 +19,7 @@
 		end: moment("10:00p", "hh:mma"),
 	}; // 6AM - 10PM
 
+	// These constants should match the ones in dnd.ts
 	const BLOCK_SPAN: number = 60; // minutes
 	const SNAP_INCREMENT: number = 15; // minutes
 
@@ -137,18 +138,89 @@
 
 		scheduleTask(task, slotTime);
 	}
+
+	async function handleTaskResize(task: TaskData): Promise<{
+		deltaMinutes: number;
+		direction: "top" | "bottom";
+	}> {
+		return async (
+			event: CustomEvent<{
+				deltaMinutes: number;
+				direction: "top" | "bottom";
+			}>,
+		) => {
+			const { deltaMinutes, direction } = event.detail;
+
+			if (!task.metadata.scheduled) return;
+
+			// Clone the task to avoid mutating the original
+			const updatedTask = { ...task };
+
+			// Create new start/end times based on the resize direction
+			if (direction === "top") {
+				// Adjust start time (moving the top handle)
+				const newStart = task.metadata.scheduled.start
+					.clone()
+					.add(deltaMinutes, "minutes");
+				// Don't allow start time to go past end time
+				if (newStart.isBefore(task.metadata.scheduled.end)) {
+					updatedTask.metadata = {
+						...task.metadata,
+						scheduled: {
+							start: newStart,
+							end: task.metadata.scheduled.end.clone(),
+						},
+					};
+				}
+			} else {
+				// Adjust end time (moving the bottom handle)
+				const newEnd = task.metadata.scheduled.end
+					.clone()
+					.add(deltaMinutes, "minutes");
+				// Don't allow end time to go before start time
+				if (newEnd.isAfter(task.metadata.scheduled.start)) {
+					updatedTask.metadata = {
+						...task.metadata,
+						scheduled: {
+							start: task.metadata.scheduled.start.clone(),
+							end: newEnd,
+						},
+					};
+				}
+			}
+
+			// Get current daily note path
+			const dailyFormat = plugin.getPeriodSetting("daily").format;
+			const filepath = moment().format(dailyFormat) + ".md";
+
+			// Update in vault
+			const success = await updateTaskInFile(
+				filepath,
+				task.raw,
+				serializeTask(updatedTask),
+			);
+
+			if (success) {
+				// Refresh displayed tasks
+				await loadScheduledTasks();
+			}
+		};
+	}
 </script>
 
 <div class="timeline">
 	<h3>Schedule</h3>
 	<div class="timeline-grid" style="--time-text-width: {TIME_COLUMN_WIDTH}">
 		{#each generateTimeSlots() as slot}
-			<DropTarget
+			<div
 				class="timeline-slot"
-				accepts={["task"]}
-				on:drop={handleTaskDrop}
-				enabled={droppable}
-				context={slot.time}
+				use:dropzone={{
+					accept: ["task"],
+					onDrop: (data) => scheduleTask(data, slot.time),
+					hoverClass: "drop-active",
+					context: slot.time,
+					enabled: droppable,
+				}}
 			>
 				<div class="timeline-time">
 					{#if slot.isHourMark}
@@ -156,7 +228,7 @@
 					{/if}
 				</div>
 				<div class="timeline-block"></div>
-			</DropTarget>
+			</div>
 		{/each}
 
 		{#each scheduledTasks as task}
@@ -167,6 +239,7 @@
 						task.metadata.scheduled.start,
 						task.metadata.scheduled.end,
 					)}
+					on:resize={handleTaskResize(task)}
 				/>
 			{/if}
 		{/each}
@@ -190,7 +263,7 @@
 		}
 	}
 
-	:global(.timeline-slot) {
+	.timeline-slot {
 		display: grid;
 		grid-template-columns: var(--time-text-width) 1fr;
 		margin: 0 4px;
@@ -210,5 +283,18 @@
 		border-inline-end: 2px solid var(--background-modifier-border);
 		border-inline-start: 2px solid var(--background-modifier-border);
 		height: 2rem;
+	}
+
+	:global(.dragging) {
+		cursor: grabbing;
+		opacity: 0.7;
+	}
+
+	:global(.no-select) {
+		user-select: none !important;
+	}
+
+	:global(.drop-active) {
+		background-color: var(--background-modifier-hover);
 	}
 </style>
