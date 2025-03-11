@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { draggable, resizable } from "src/lib/dnd";
+	import { draggable } from "src/lib/dnd";
 	import type { TaskData } from "src/lib/types";
 	import { createEventDispatcher } from "svelte";
 
@@ -15,12 +15,12 @@
 	};
 
 	const dispatch = createEventDispatcher<{
-		resize: { deltaMinutes: number; direction: 'top' | 'bottom' };
+		resize: { deltaMinutes: number; direction: "top" | "bottom" };
 	}>();
 
-	function handleResize(direction: 'top' | 'bottom') {
+	function handleResize(direction: "top" | "bottom") {
 		return (deltaMinutes: number) => {
-			dispatch('resize', { deltaMinutes, direction });
+			dispatch("resize", { deltaMinutes, direction });
 		};
 	}
 </script>
@@ -28,31 +28,14 @@
 <div
 	class="timeline-task"
 	{...$$props}
-	use:draggable={{
-		data: task,
-		type: "task",
-		effect: "move",
-		dragClass: "dragging"
-	}}
+	use:draggable
 	style={Object.entries(positionStyle)
 		.map(([k, v]) => `${k}: ${v}`)
 		.join("; ")}
 >
-	<div 
-		class="resize-handle top" 
-		use:resizable={{
-			direction: 'top',
-			onResize: handleResize('top')
-		}}
-	/>
+	<span class="resize-handle top" />
 	<div class="task-content">{task.content}</div>
-	<div 
-		class="resize-handle bottom" 
-		use:resizable={{
-			direction: 'bottom',
-			onResize: handleResize('bottom')
-		}}
-	/>
+	<span class="resize-handle bottom" />
 </div>
 
 <style lang="scss">

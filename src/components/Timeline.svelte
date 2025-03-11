@@ -10,7 +10,6 @@
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
 	import type { TaskData } from "src/lib/types";
-	import { dropzone } from "src/lib/dnd";
 
 	export let droppable: boolean | undefined;
 
@@ -139,7 +138,7 @@
 		scheduleTask(task, slotTime);
 	}
 
-	async function handleTaskResize(task: TaskData): Promise<{
+	/* async function handleTaskResize(task: TaskData): Promise<{
 		deltaMinutes: number;
 		direction: "top" | "bottom";
 	}> {
@@ -204,8 +203,8 @@
 				// Refresh displayed tasks
 				await loadScheduledTasks();
 			}
-		};
-	}
+		}; 
+	}*/
 </script>
 
 <div class="timeline">
@@ -214,13 +213,6 @@
 		{#each generateTimeSlots() as slot}
 			<div
 				class="timeline-slot"
-				use:dropzone={{
-					accept: ["task"],
-					onDrop: (data) => scheduleTask(data, slot.time),
-					hoverClass: "drop-active",
-					context: slot.time,
-					enabled: droppable,
-				}}
 			>
 				<div class="timeline-time">
 					{#if slot.isHourMark}
@@ -239,7 +231,6 @@
 						task.metadata.scheduled.start,
 						task.metadata.scheduled.end,
 					)}
-					on:resize={handleTaskResize(task)}
 				/>
 			{/if}
 		{/each}

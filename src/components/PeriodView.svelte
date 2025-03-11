@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { moment, Notice } from "obsidian";
 	import type TimeBlockPlugin from "../../main";
-	import Draggable from "./Draggable.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { getTasksFrom } from "src/lib/taskUtilities";
 	import TaskView from "./TaskView.svelte";
@@ -65,9 +64,7 @@
 	{:else}
 		<div class="task-list">
 			{#each tasks as task}
-				<Draggable data={task} type="task">
-					<TaskView {task} />
-				</Draggable>
+				<TaskView {task} />
 			{/each}
 		</div>
 	{/if}
