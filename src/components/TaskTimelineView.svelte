@@ -1,8 +1,8 @@
 <script lang="ts">
 	import {
-		DefaultGhostRenderer,
+		DefaultGhostPosition,
 		draggable,
-		type DragArgs,
+		type DragData,
 		type GhostRenderFunction,
 	} from "src/lib/dnd";
 	import { createEventDispatcher } from "svelte";
@@ -30,18 +30,17 @@
 	const pxPerRem = parseFloat(
 		getComputedStyle(document.documentElement).fontSize,
 	);
-	const onGhostRender: GhostRenderFunction = (evt, ghost, args) => {
-		DefaultGhostRenderer(evt, ghost, args);
-		const increment = pxPerRem * 2;
-		// ghost.style.top = args.posData.y + "px"; //`${Math.round(parseInt(ghost.style.top) / increment) * increment}px`;
-		// ghost.style.left = args.posData.x + "px";
-	};
 </script>
 
 <div
 	class="timeline-task"
 	{...$$props}
-	use:draggable={{ /*  axis: "y", */ onGhostRender, devDelay: 30000 }}
+	data-dnd-data={JSON.stringify(task)}
+	use:draggable={{
+		type: "task",
+		data: task,
+		onGhostPosition: () => ({ x: null, y: null }),
+	}}
 	style={Object.entries(positionStyle)
 		.map(([k, v]) => `${k}: ${v}`)
 		.join("; ")}

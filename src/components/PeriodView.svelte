@@ -3,7 +3,7 @@
 	import type TimeBlockPlugin from "src/main";
 	import { pluginStore } from "src/stores/plugin";
 	import { getTasksFrom } from "src/lib/taskUtilities";
-	import TaskView from "./TaskView.svelte";
+	import TaskView from "./TaskModalView.svelte";
 
 	export let period: Period = "daily";
 

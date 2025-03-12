@@ -9,8 +9,11 @@
 	import TaskTimelineView from "./TaskTimelineView.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
-
-	export let droppable: boolean | undefined;
+	import {
+		droppable,
+		type DragData,
+		type GhostPositionFunction,
+	} from "src/lib/dnd";
 
 	let timeRange: { start: moment.Moment; end: moment.Moment } = {
 		start: moment("06:00a", "hh:mma"),
@@ -131,79 +134,23 @@
 		}
 	}
 
-	async function handleTaskDrop(event: CustomEvent) {
-		const { data: task, context: slotTime } = event.detail;
+	const handleGhostPosition = (
+		event: DragEvent,
+		args: DragData,
+		slot: {
+			time: moment.Moment;
+			isHourMark: boolean;
+			index: number;
+		},
+	) => {
+		const curTarg = event.currentTarget as HTMLElement;
+		const y = curTarg.getBoundingClientRect().top;
+		const x =
+			curTarg.querySelector(".timeline-block")?.getBoundingClientRect().left ??
+			0;
 
-		scheduleTask(task, slotTime);
-	}
-
-	/* async function handleTaskResize(task: TaskData): Promise<{
-		deltaMinutes: number;
-		direction: "top" | "bottom";
-	}> {
-		return async (
-			event: CustomEvent<{
-				deltaMinutes: number;
-				direction: "top" | "bottom";
-			}>,
-		) => {
-			const { deltaMinutes, direction } = event.detail;
-
-			if (!task.metadata.scheduled) return;
-
-			// Clone the task to avoid mutating the original
-			const updatedTask = { ...task };
-
-			// Create new start/end times based on the resize direction
-			if (direction === "top") {
-				// Adjust start time (moving the top handle)
-				const newStart = task.metadata.scheduled.start
-					.clone()
-					.add(deltaMinutes, "minutes");
-				// Don't allow start time to go past end time
-				if (newStart.isBefore(task.metadata.scheduled.end)) {
-					updatedTask.metadata = {
-						...task.metadata,
-						scheduled: {
-							start: newStart,
-							end: task.metadata.scheduled.end.clone(),
-						},
-					};
-				}
-			} else {
-				// Adjust end time (moving the bottom handle)
-				const newEnd = task.metadata.scheduled.end
-					.clone()
-					.add(deltaMinutes, "minutes");
-				// Don't allow end time to go before start time
-				if (newEnd.isAfter(task.metadata.scheduled.start)) {
-					updatedTask.metadata = {
-						...task.metadata,
-						scheduled: {
-							start: task.metadata.scheduled.start.clone(),
-							end: newEnd,
-						},
-					};
-				}
-			}
-
-			// Get current daily note path
-			const dailyFormat = plugin.getPeriodSetting("daily").format;
-			const filepath = moment().format(dailyFormat) + ".md";
-
-			// Update in vault
-			const success = await updateTaskInFile(
-				filepath,
-				task.raw,
-				serializeTask(updatedTask),
-			);
-
-			if (success) {
-				// Refresh displayed tasks
-				await loadScheduledTasks();
-			}
-		}; 
-	}*/
+		return { x, y };
+	};
 </script>
 
 <div class="timeline">
@@ -211,7 +158,14 @@
 	<div class="timeline-grid" style="--time-text-width: {TIME_COLUMN_WIDTH}">
 		{#each generateTimeSlots() as slot}
 			<div
+				use:droppable={{
+					accepts: ["task"],
+					onGhostPosition: (evt, args) => {
+						return handleGhostPosition(evt, args, slot);
+					},
+				}}
 				class="timeline-slot"
+				data-context={JSON.stringify(slot.time)}
 			>
 				<div class="timeline-time">
 					{#if slot.isHourMark}
@@ -282,9 +236,5 @@
 
 	:global(.no-select) {
 		user-select: none !important;
-	}
-
-	:global(.drop-active) {
-		background-color: var(--background-modifier-hover);
 	}
 </style>
