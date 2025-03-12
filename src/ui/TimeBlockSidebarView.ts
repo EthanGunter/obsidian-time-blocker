@@ -1,12 +1,13 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import CalendarDay from "../components/Timeline.svelte";
-import type TimeBlockPlugin from "../../main";
+import type TimeBlockPlugin from "src/main";
 
 export const VIEW_TYPE_TIMEBLOCK = "timeblock-view";
 
 export class TimeBlockSidebarView extends ItemView {
     component: CalendarDay;
     plugin: TimeBlockPlugin;
+    private styleEl: HTMLElement | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: TimeBlockPlugin) {
         super(leaf);
@@ -37,6 +38,10 @@ export class TimeBlockSidebarView extends ItemView {
     async onClose() {
         if (this.component) {
             this.component.$destroy();
+        }
+        if (this.styleEl) {
+            this.styleEl.remove();
+            this.styleEl = null;
         }
     }
 }

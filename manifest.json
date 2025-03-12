@@ -5,7 +5,7 @@
 	"minAppVersion": "1.0.0",
 	"description": "Plan your day with time blocks in Obsidian",
 	"author": "Ethan Gunter",
-	"authorUrl": "https://flolu.de",
-	"fundingUrl": "https://flolu.de/donations",
+	"authorUrl": "https://github.com/ethangunter/obsidian-time-blocker",
+	"fundingUrl": "https://ko-fi.com/ethangunter",
 	"isDesktopOnly": false
 }

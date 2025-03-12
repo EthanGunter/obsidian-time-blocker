@@ -1,7 +1,6 @@
 import { moment, Notice, TFile, TFolder } from "obsidian";
 import { pluginStore } from "src/stores/plugin";
 import { get } from "svelte/store";
-import { type TaskData, type TaskStatus } from "./types";
 
 // Metadata patterns
 const SCHEDULE_TIME_REGEX = /@(\d{1,2}:\d{2}[ap]?m?-\d{1,2}:\d{2}[ap]?m?)/gi;

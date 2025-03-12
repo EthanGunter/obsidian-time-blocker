@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { moment, Notice } from "obsidian";
-	import type TimeBlockPlugin from "../../main";
+	import type TimeBlockPlugin from "src/main";
 	import { pluginStore } from "src/stores/plugin";
 	import { getTasksFrom } from "src/lib/taskUtilities";
 	import TaskView from "./TaskView.svelte";
-	import type { Period, TaskData } from "src/lib/types";
 
 	export let period: Period = "daily";
 

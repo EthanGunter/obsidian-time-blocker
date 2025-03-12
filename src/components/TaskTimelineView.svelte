@@ -1,6 +1,10 @@
 <script lang="ts">
-	import { draggable } from "src/lib/dnd";
-	import type { TaskData } from "src/lib/types";
+	import {
+		DefaultGhostRenderer,
+		draggable,
+		type DragArgs,
+		type GhostRenderFunction,
+	} from "src/lib/dnd";
 	import { createEventDispatcher } from "svelte";
 
 	export let task: TaskData;
@@ -23,12 +27,21 @@
 			dispatch("resize", { deltaMinutes, direction });
 		};
 	}
+	const pxPerRem = parseFloat(
+		getComputedStyle(document.documentElement).fontSize,
+	);
+	const onGhostRender: GhostRenderFunction = (evt, ghost, args) => {
+		DefaultGhostRenderer(evt, ghost, args);
+		const increment = pxPerRem * 2;
+		// ghost.style.top = args.posData.y + "px"; //`${Math.round(parseInt(ghost.style.top) / increment) * increment}px`;
+		// ghost.style.left = args.posData.x + "px";
+	};
 </script>
 
 <div
 	class="timeline-task"
 	{...$$props}
-	use:draggable
+	use:draggable={{ /*  axis: "y", */ onGhostRender, devDelay: 30000 }}
 	style={Object.entries(positionStyle)
 		.map(([k, v]) => `${k}: ${v}`)
 		.join("; ")}
@@ -83,5 +96,9 @@
 		&.bottom:hover {
 			border-width: 0 0 3px 0;
 		}
+	}
+
+	.dnd-ghost {
+		background-color: green;
 	}
 </style>

@@ -1,7 +1,6 @@
 import { get } from "svelte/store";
 import { moment } from "obsidian";
 import { pluginStore } from "src/stores/plugin";
-import type { TimeBlockPlannerSettings, Period } from "./types";
 
 
 export const DEFAULT_SETTINGS: TimeBlockPlannerSettings = {

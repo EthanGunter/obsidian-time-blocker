@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { moment } from "obsidian";
-	import type TimeBlockPlugin from "main";
+	import type TimeBlockPlugin from "src/main";
 	import {
 		getTasksFrom,
 		updateTaskInFile,
@@ -9,7 +9,6 @@
 	import TaskTimelineView from "./TaskTimelineView.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
-	import type { TaskData } from "src/lib/types";
 
 	export let droppable: boolean | undefined;
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { TaskData } from "src/lib/types";
 
 	export let task: TaskData;
 
@@ -83,21 +82,9 @@
 			cursor: pointer;
 			touch-action: manipulation; // Improve touch targeting
 
-			&:hover,
-			&:active {
+			&:hover {
 				color: var(--text-normal);
 			}
-		}
-	}
-
-	@media (min-width: 769px) {
-		.task-controls {
-			opacity: 0.6;
-		}
-
-		.task-view:hover .task-controls,
-		.task-view:active .task-controls {
-			opacity: 1;
 		}
 	}
 </style>
