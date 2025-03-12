@@ -17,6 +17,9 @@
 	} = {
 		height: "2rem",
 	};
+	$: serializedStyle = Object.entries(positionStyle)
+		.map(([k, v]) => `${k}: ${v}`)
+		.join("; ");
 
 	const dispatch = createEventDispatcher<{
 		resize: { deltaMinutes: number; direction: "top" | "bottom" };
@@ -35,15 +38,12 @@
 <div
 	class="timeline-task"
 	{...$$props}
-	data-dnd-data={JSON.stringify(task)}
 	use:draggable={{
 		type: "task",
 		data: task,
 		onGhostPosition: () => ({ x: null, y: null }),
 	}}
-	style={Object.entries(positionStyle)
-		.map(([k, v]) => `${k}: ${v}`)
-		.join("; ")}
+	style={serializedStyle}
 >
 	<span class="resize-handle top" />
 	<div class="task-content">{task.content}</div>

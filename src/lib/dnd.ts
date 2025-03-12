@@ -20,7 +20,7 @@ export const DefaultGhostPosition: GhostPositionFunction = (event, args) => {
 export function draggable<T>(
   node: HTMLElement,
   {
-    type: draggableType,
+    type,
     data,
     onDragStart,
     onDragEnd,
@@ -42,13 +42,6 @@ export function draggable<T>(
       node.style.pointerEvents = "none";
     }, 0);
 
-    // Store drag type and data
-    if (draggableType) {
-      startEvent.dataTransfer.setData("text/type", draggableType);
-      const nodeData = node.dataset.dndData || "{}";
-      startEvent.dataTransfer.setData("text/data", nodeData);
-    }
-
     // Prevent native drag ghost
     startEvent.dataTransfer.setDragImage(new Image(), 0, 0);
 
@@ -61,22 +54,11 @@ export function draggable<T>(
       offsetY: rect.top - startEvent.clientY,
     }
 
-    // Create unique drag ID for this operation
-    const dragId = crypto.randomUUID();
-    startEvent.dataTransfer.setData("text/drag-id", dragId);
-
     // Create ghost with unique drag ID
     let ghost = node.cloneNode(true) as HTMLElement;
     ghost.setAttribute("draggable", "false");
     ghost.removeClass("dnd-draggable");
     ghost.addClass("dnd-ghost");
-    ghost.dataset.dragId = dragId;
-
-    // Store drag type and data on the ghost element for droppables to access
-    if (draggableType) {
-      ghost.setAttribute("data-draggable-type", draggableType);
-      ghost.setAttribute("data-draggable-data", node.dataset.dndData || "{}");
-    }
 
     // Store axis information for droppables
     ghost.setAttribute("data-drag-axis", axis);
@@ -85,19 +67,35 @@ export function draggable<T>(
 
     document.body.appendChild(ghost);
 
+    let validDroppable: HTMLElement | null;
     function moveGhost(moveEvent: DragEvent) {
-      const { x, y } = DefaultGhostPosition(moveEvent, { node, axis, newX: moveEvent.clientX, newY: moveEvent.clientY, ...startData });
-      const args: DragData = { axis, node, newX: x, newY: y, ...startData };
+      validDroppable = getValidDroppableUnderMouse(moveEvent, type ?? "any")
+      const args = {
+        node,
+        ghost,
+        axis,
+        newX: moveEvent.clientX,
+        newY: moveEvent.clientY,
+        ...startData
+      };
 
-
-      let pos: { x: number | null; y: number | null } = { x, y };
-      const droppable = getValidDroppableUnderMouse(moveEvent, draggableType ?? "any")
-      if (droppable && droppable.getAttribute(CONTROLS_DRAGGABLE_ATTR)) {
+      if (validDroppable && validDroppable.getAttribute(CONTROLS_DRAGGABLE_ATTR)) {
         // let the droppable handle ghost positioning
       } else {
-        if (onGhostPosition) pos = onGhostPosition(moveEvent, args);
-        if (pos.y) ghost.style.top = `${pos.y}px`;
-        if (pos.x) ghost.style.left = `${pos.x}px`;
+        let { x, y } = DefaultGhostPosition(moveEvent, args);
+
+        args.newX = x ?? args.newX;
+        args.newY = y ?? args.newY;
+
+        if (onGhostPosition) {
+          let pos: { x: number | null; y: number | null } = { x: args.newX, y: args.newY };
+          pos = onGhostPosition(moveEvent, args);
+          x = pos.x;
+          y = pos.y;
+        }
+
+        ghost.style.left = `${x}px`;
+        ghost.style.top = `${y}px`;
       }
 
       onGhostRender?.(moveEvent, ghost, args);
@@ -116,20 +114,39 @@ export function draggable<T>(
       document.removeEventListener("dragover", moveGhost);
     }
 
+    function handleDrop(dropEvent: DragEvent) {
+      dropEvent.stopPropagation();
+
+      onDragEnd?.(dropEvent, node);
+      if (dropEvent.defaultPrevented) return;
+
+      if (validDroppable == null) return;
+
+      const custEvt = new CustomEvent<DropEventDetail>(dropEventName, {
+        detail: {
+          type,
+          node,
+          ghost,
+          data
+        }
+      });
+
+      validDroppable.dispatchEvent(custEvt);
+
+      // Clean up all ghosts for this drag operation
+      const ghosts = document.querySelectorAll(`.dnd-ghost`);
+      ghosts.forEach(ghost => ghost.remove());
+
+      if (devDelay) setTimeout(() => {
+        cleanup();
+      }, devDelay);
+      else
+        cleanup();
+
+    }
     node.addEventListener(
       "dragend",
-      (e) => {
-        onDragEnd?.(e, node);
-        // Clean up all ghosts for this drag operation
-        const ghosts = document.querySelectorAll(`.dnd-ghost[data-drag-id="${dragId}"]`);
-        ghosts.forEach(ghost => ghost.remove());
-
-        if (devDelay) setTimeout(() => {
-          cleanup();
-        }, devDelay);
-        else
-          cleanup();
-      },
+      handleDrop,
       { once: true }
     );
   }
@@ -160,29 +177,24 @@ export function droppable(node: HTMLElement, { accepts, onDrop, onGhostPosition,
     if (!ghost) return;
 
     if (onGhostPosition || onGhostRender) {
-      // Get critical positioning data from the ghost
-      const dragType = ghost.getAttribute("data-draggable-type");
-      const dragAxis = ghost.getAttribute("data-drag-axis") || "both";
-
       // Create positioning arguments similar to draggable's implementation
       const rect = ghost.getBoundingClientRect();
       const args: DragData = {
-        node: ghost as HTMLElement,
+        node: overEvent.target as HTMLElement,
+        ghost,
         newX: overEvent.clientX,
         newY: overEvent.clientY,
         startX: rect.left,
         startY: rect.top,
         offsetX: rect.left - overEvent.clientX,
         offsetY: rect.top - overEvent.clientY,
-        axis: dragAxis as "both" | "x" | "y"
       };
 
       // Let droppable control positioning
       if (onGhostPosition) {
-
         const pos = onGhostPosition(overEvent, args);
-        ghost.style.left = `${pos.x}px`;
-        ghost.style.top = `${pos.y}px`;
+        if (pos.x) ghost.style.left = `${pos.x}px`;
+        if (pos.y) ghost.style.top = `${pos.y}px`;
       }
 
       onGhostRender?.(overEvent, ghost as HTMLElement, args);
@@ -194,37 +206,28 @@ export function droppable(node: HTMLElement, { accepts, onDrop, onGhostPosition,
     node.removeClass("drop-active");
   }
 
-  function handleDrop(dropEvent: DragEvent) {
+  function handleDrop(dropEvent: DropEvent) {
+    if (!(dropEvent instanceof CustomEvent)) return
+
     dropEvent.preventDefault();
     node.removeClass("drop-active");
 
-    const dataTransfer = dropEvent.dataTransfer;
-    if (!dataTransfer) return;
-
-    // Extract data from the draggable element
-    const dragType = dataTransfer.getData("text/type");
-    const dragData = dataTransfer.getData("text/data");
-
-    if (dragType && accepts.includes(dragType)) {
-      onDrop?.(dropEvent, node, {
-        type: dragType,
-        data: dragData ? JSON.parse(dragData) : null,
-        context: node.dataset.context ? JSON.parse(node.dataset.context) : null
-      });
+    if (accepts.includes(dropEvent.detail.type)) {
+      onDrop?.(dropEvent);
     }
   }
 
   node.addEventListener("dragenter", handleDragEnter);
   node.addEventListener("dragover", handleDragOver);
   node.addEventListener("dragleave", handleDragLeave);
-  node.addEventListener("drop", handleDrop);
+  node.addEventListener(dropEventName, handleDrop);
 
   return {
     destroy() {
       node.removeEventListener("dragenter", handleDragEnter);
       node.removeEventListener("dragover", handleDragOver);
       node.removeEventListener("dragleave", handleDragLeave);
-      node.removeEventListener("drop", handleDrop);
+      node.removeEventListener(dropEventName, handleDrop);
     }
   }
 }
@@ -261,6 +264,7 @@ function getValidDroppableUnderMouse(event: DragEvent, type: string): HTMLElemen
 type DragOptions = { axis?: "both" | "x" | "y"; };
 export type DragData = {
   node: HTMLElement,
+  ghost: HTMLElement,
   newX: number | null,
   newY: number | null,
   startX: number,
@@ -280,7 +284,7 @@ type DraggableParams<T> = {
 
 type DroppableParams = {
   accepts: string[];
-  onDrop?: (event: DragEvent, node: HTMLElement, data: any) => void;
+  onDrop?: (event: DropEvent) => void;
   onGhostRender?: GhostRenderFunction;
   onGhostPosition?: GhostPositionFunction;
   onIndicatorRender?: (event: DragEvent, indicator: HTMLElement) => void;
@@ -289,4 +293,7 @@ type DroppableParams = {
 export type GhostRenderFunction = (event: DragEvent, ghost: HTMLElement, args: DragData) => void;
 export type GhostPositionFunction = (event: DragEvent, args: DragData) => { x: number | null, y: number | null };
 
+export const dropEventName = "dnd-drop";
+interface DropEventDetail { type: string, data: any, node: HTMLElement, ghost: HTMLElement }
+export type DropEvent = CustomEvent<DropEventDetail>;
 //#endregion

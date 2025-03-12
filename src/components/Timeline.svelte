@@ -12,6 +12,7 @@
 	import {
 		droppable,
 		type DragData,
+		type DropEvent,
 		type GhostPositionFunction,
 	} from "src/lib/dnd";
 
@@ -134,7 +135,22 @@
 		}
 	}
 
-	const handleGhostPosition = (
+	function handleTaskDrop(
+		e: DropEvent,
+		slot: {
+			time: moment.Moment;
+			isHourMark: boolean;
+			index: number;
+		},
+	) {
+		const { type, data } = e.detail;
+		if (type !== "task") return;
+
+		console.log("HANDLING TASK ON DROP!", e.detail.data);
+		scheduleTask(data, slot.time);
+	}
+
+	function handleGhostPosition(
 		event: DragEvent,
 		args: DragData,
 		slot: {
@@ -142,15 +158,15 @@
 			isHourMark: boolean;
 			index: number;
 		},
-	) => {
+	) {
 		const curTarg = event.currentTarget as HTMLElement;
 		const y = curTarg.getBoundingClientRect().top;
 		const x =
-			curTarg.querySelector(".timeline-block")?.getBoundingClientRect().left ??
-			0;
+			curTarg.querySelector(".timeline-block")?.getBoundingClientRect()
+				.left ?? 0;
 
 		return { x, y };
-	};
+	}
 </script>
 
 <div class="timeline">
@@ -160,6 +176,9 @@
 			<div
 				use:droppable={{
 					accepts: ["task"],
+					onDrop: (e) => {
+						handleTaskDrop(e, slot);
+					},
 					onGhostPosition: (evt, args) => {
 						return handleGhostPosition(evt, args, slot);
 					},

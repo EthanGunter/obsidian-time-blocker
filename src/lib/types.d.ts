@@ -35,3 +35,9 @@ declare global { // TODO maybe don't do this...
 
     type Period = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 }
+
+/* declare global {
+    interface HTMLElementEventMap {
+        myCustomEvent: CustomEvent<{ message: string; timestamp: number }>;
+    }
+} */
