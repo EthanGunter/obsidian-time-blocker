@@ -34,6 +34,7 @@ export function draggable<T>(
   node.addClass("dnd-draggable");
 
   function handleDragStart(startEvent: DragEvent) {
+
     if (!startEvent.dataTransfer) return;
     startEvent.dataTransfer.effectAllowed = "move";
 
@@ -154,6 +155,11 @@ export function draggable<T>(
   node.addEventListener("dragstart", handleDragStart);
 
   return {
+    update(newProps: DraggableParams<any>) {
+      axis = newProps.axis ?? axis;
+      data = newProps.data ?? data;
+      type = newProps.type;
+    },
     destroy() {
       node.removeEventListener("dragstart", handleDragStart);
     }

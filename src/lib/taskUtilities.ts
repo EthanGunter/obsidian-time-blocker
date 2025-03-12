@@ -17,6 +17,7 @@ export async function getTasksFrom(filepath: string): Promise<TaskData[]> {
 
     if (file instanceof TFile) {
         const content = await get(pluginStore).app.vault.read(file);
+
         const taskStrings = parseTasks(content);
 
         return taskStrings.map(task => deserializeTask(task));
@@ -95,6 +96,7 @@ export async function updateTaskInFile(filePath: string, originalRaw: string, up
         try {
             const content = await get(pluginStore).app.vault.read(file);
             const updatedContent = content.replace(originalRaw, updatedTask);
+            
             await get(pluginStore).app.vault.modify(file, updatedContent);
             return true;
         } catch (error) {

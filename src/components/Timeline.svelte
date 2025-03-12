@@ -30,7 +30,8 @@
 	});
 	let plugin: TimeBlockPlugin;
 	pluginStore.subscribe((value) => (plugin = value));
-	let scheduledTasks: TaskData[] = [];
+	let scheduledTasks: TaskData[];
+	$: scheduledTasks = [];
 
 	import { Notice } from "obsidian";
 
@@ -41,6 +42,7 @@
 
 		try {
 			const tasks = await getTasksFrom(filepath);
+			// console.log(tasks);
 
 			scheduledTasks = tasks.filter((t) => t.metadata.scheduled);
 		} catch (e) {
@@ -100,12 +102,6 @@
 	}
 
 	async function scheduleTask(task: TaskData, slotTime: moment.Moment) {
-		console.log(
-			"Scheduling task:",
-			task.content,
-			slotTime.toLocaleString(),
-		);
-
 		const start = slotTime.clone();
 		const end = start.clone().add(BLOCK_SPAN, "minutes");
 
@@ -146,7 +142,6 @@
 		const { type, data } = e.detail;
 		if (type !== "task") return;
 
-		console.log("HANDLING TASK ON DROP!", e.detail.data);
 		scheduleTask(data, slot.time);
 	}
 

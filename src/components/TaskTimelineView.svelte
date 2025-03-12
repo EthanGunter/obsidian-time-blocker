@@ -6,6 +6,7 @@
 		type GhostRenderFunction,
 	} from "src/lib/dnd";
 	import { createEventDispatcher } from "svelte";
+	import { moment } from "obsidian";
 
 	export let task: TaskData;
 
@@ -46,7 +47,11 @@
 	style={serializedStyle}
 >
 	<span class="resize-handle top" />
-	<div class="task-content">{task.content}</div>
+	<div class="task-content">
+		{task.content} - {moment(task.metadata.scheduled?.start).format(
+			"hh:mma",
+		)}
+	</div>
 	<span class="resize-handle bottom" />
 </div>
 
