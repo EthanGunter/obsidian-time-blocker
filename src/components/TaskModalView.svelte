@@ -33,9 +33,9 @@
 		✕
 	</button> -->
 	<div class="task-content">
-		{task.content} - {moment(task.metadata.scheduled?.start).format(
-			"hh:mma",
-		)}
+		{task.content} - {task.metadata.scheduled
+			? moment(task.metadata.scheduled.start).format("hh:mma")
+			: "Unscheduled"}
 	</div>
 	<!-- <button
 		class="move-up"
@@ -48,26 +48,26 @@
 
 <style lang="scss">
 	.modal-task {
-		// position: relative;
-		// display: flex;
-		// align-items: center;
-		// gap: 0.5rem;
-		// width: 100%;
-		// padding: 0.25rem;
-		// background: var(--background-secondary);
-		// border: 1px solid var(--background-modifier-border);
-		// border-radius: 0.2rem;
-		// transition: transform 0.1s ease;
+		// position: relative; Fucks with dnd styling (the ghost gets placed offscreen 😢)
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+		padding: 0.25rem;
+		background: var(--background-secondary);
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 0.2rem;
+		transition: transform 0.1s ease;
 
-		// &:hover {
-		// 	z-index: 1;
-		// 	transform: scale(1.02);
-		// 	box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
+		&:hover {
+			z-index: 1;
+			transform: scale(1.02);
+			box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
 
-		// 	.task-controls {
-		// 		opacity: 1;
-		// 	}
-		// }
+			.task-controls {
+				opacity: 1;
+			}
+		}
 	}
 
 	.task-content {

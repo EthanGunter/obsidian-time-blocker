@@ -16,19 +16,6 @@
 	$: serializedStyle = Object.entries(positionStyle)
 		.map(([k, v]) => `${k}: ${v}`)
 		.join("; ");
-
-	const dispatch = createEventDispatcher<{
-		resize: { deltaMinutes: number; direction: "top" | "bottom" };
-	}>();
-
-	function handleResize(direction: "top" | "bottom") {
-		return (deltaMinutes: number) => {
-			dispatch("resize", { deltaMinutes, direction });
-		};
-	}
-	const pxPerRem = parseFloat(
-		getComputedStyle(document.documentElement).fontSize,
-	);
 </script>
 
 <div
@@ -40,13 +27,19 @@
 	}}
 	style={serializedStyle}
 >
-	<span class="resize-handle top" />
+	<span
+		class="resize-handle top"
+		use:draggable={{ type: "task/resize/start", data: task }}
+	/>
 	<div class="task-content">
-		{task.content} - {moment(task.metadata.scheduled?.start).format(
-			"hh:mma",
-		)}
+		{task.content} - {task.metadata.scheduled
+			? moment(task.metadata.scheduled.start).format("hh:mma")
+			: "Unscheduled"}
 	</div>
-	<span class="resize-handle bottom" />
+	<span
+		class="resize-handle bottom"
+		use:draggable={{ type: "task/resize/end", data: task }}
+	/>
 </div>
 
 <style lang="scss">

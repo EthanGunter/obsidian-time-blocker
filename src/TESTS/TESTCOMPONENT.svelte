@@ -24,8 +24,11 @@
 		>
 			Cake
 		</div>
-		<TEST type="test">Test (wrapped)</TEST>
-		<TEST type="lie">Cake (wrapped)</TEST>
+		<TEST type="test">test</TEST>
+		<TEST type="test/a">test/a</TEST>
+		<TEST type="test/a/3">test/a/3</TEST>
+		<TEST type="test/drop">test/drop/</TEST>
+		<TEST type="test/drop/a">test/drop/a</TEST>
 	</div>
 	<div class="drop-container">
 		<div
@@ -37,18 +40,62 @@
 				},
 			}}
 		>
-			Tests
+			Test
 		</div>
 		<div
 			class="drop-target"
 			use:droppable={{
-				accepts: ["lie"],
+				accepts: ["test/a"],
 				onDrop: (e) => {
 					console.log("Accepting:", e.detail.data);
 				},
 			}}
 		>
-			Lies
+			Test/a
+		</div>
+		<div
+			class="drop-target"
+			use:droppable={{
+				accepts: ["test/drop"],
+				onDrop: (e) => {
+					console.log("Accepting:", e.detail.data);
+				},
+			}}
+		>
+			Test/drop
+		</div>
+		<div
+			class="drop-target"
+			use:droppable={{
+				accepts: ["test/**"],
+				onDrop: (e) => {
+					console.log("Accepting:", e.detail.data);
+				},
+			}}
+		>
+			Test/**
+		</div>
+		<div
+			class="drop-target"
+			use:droppable={{
+				accepts: ["test/"],
+				onDrop: (e) => {
+					console.log("Accepting:", e.detail.data);
+				},
+			}}
+		>
+			Test/
+		</div>
+		<div
+			class="drop-target"
+			use:droppable={{
+				accepts: ["**"],
+				onDrop: (e) => {
+					console.log("Accepting:", e.detail.data);
+				},
+			}}
+		>
+			Any
 		</div>
 	</div>
 </div>

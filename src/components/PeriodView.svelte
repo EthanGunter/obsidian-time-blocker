@@ -56,10 +56,10 @@
 
 <style lang="scss">
 	.period-view {
-		border-right: 1px solid var(--background-modifier-border);
+		// border-right: 1px solid var(--background-modifier-border);
 	}
 
-	.task-list {
+	.tasks-container {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;

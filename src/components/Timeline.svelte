@@ -84,9 +84,12 @@
 		});
 	}
 
-	async function scheduleTask(task: TaskData, slotTime: moment.Moment) {
-		const start = slotTime.clone();
-		const end = start.clone().add(BLOCK_SPAN, "minutes");
+	async function scheduleTask(
+		task: TaskData,
+		start: moment.Moment,
+		end: moment.Moment,
+	) {
+		console.log("Scheduling task for:", start.toString(), end.toString());
 
 		// Create updated task with new schedule
 		const updatedTask: TaskData = {
@@ -122,9 +125,48 @@
 			index: number;
 		},
 	) {
-		const { type, data } = e.detail;
+		const { type, data } = e.detail as { type: string; data: TaskData };
+		if (type.includes("resize")) {
+			if (!data.metadata.scheduled)
+				throw new Error(
+					"Task resized before being scheduled. How the hell did you do that?",
+				);
+			// Task resize
+			const direction = type.split("resize/")[1];
 
-		scheduleTask(data, slot.time);
+			if (direction == "start") {
+				scheduleTask(data, slot.time, data.metadata.scheduled?.end);
+			} else if (direction == "end") {
+				scheduleTask(
+					data,
+					data.metadata.scheduled?.start,
+					slot.time.clone().add(BLOCK_SPAN, "minutes"),
+				);
+			} else {
+				throw new Error(`Unimplemented resize handler: ${direction}`);
+			}
+		} else {
+			// Task move
+			if (data.metadata.scheduled) {
+				scheduleTask(
+					data,
+					slot.time,
+					slot.time
+						.clone()
+						.add(
+							data.metadata.scheduled.end
+								.clone()
+								.diff(data.metadata.scheduled.start),
+						),
+				);
+			} else {
+				scheduleTask(
+					data,
+					slot.time,
+					slot.time.clone().add(BLOCK_SPAN, "minutes"),
+				);
+			}
+		}
 	}
 
 	function handleGhostPosition(
@@ -153,7 +195,7 @@
 		{#each generateTimeSlots() as slot}
 			<div
 				use:droppable={{
-					accepts: ["task"],
+					accepts: ["task", "task/resize/*"],
 					onDrop: (e) => {
 						handleTaskDrop(e, slot);
 					},
@@ -192,8 +234,8 @@
 <style lang="scss">
 	.timeline-grid {
 		position: relative;
-		overflow-y: scroll;
-		overflow-x: hidden;
+		// overflow-y: scroll;
+		// overflow-x: hidden;
 		margin-bottom: 1rem;
 
 		/* Scrollbar styling */

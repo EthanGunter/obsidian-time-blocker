@@ -247,7 +247,7 @@ export function droppable(node: HTMLElement, { accepts, onDrop, onGhostPosition,
     const { type } = event.detail;
 
     // Apply state-styling
-    if (accepts.includes(type)) {
+    if (matchesDndType(type, accepts)) {
       node.addClass("valid-drop");
     } else {
       node.addClass("invalid-drop");
@@ -260,7 +260,7 @@ export function droppable(node: HTMLElement, { accepts, onDrop, onGhostPosition,
     const { type } = event.detail;
 
     // Apply state-styling
-    if (accepts.includes(type)) {
+    if (matchesDndType(type, accepts)) {
       node.addClass("valid-drop");
     } else {
       node.addClass("invalid-drop");
@@ -285,7 +285,7 @@ export function droppable(node: HTMLElement, { accepts, onDrop, onGhostPosition,
     const { type } = event.detail;
 
     // Check if the drop is valid
-    if (accepts.includes(type)) {
+    if (matchesDndType(type, accepts)) {
       onDrop?.(event);
     }
   }
@@ -306,6 +306,48 @@ export function droppable(node: HTMLElement, { accepts, onDrop, onGhostPosition,
 }
 
 //#region Utilities
+
+export function matchesDndType(type: string, pattern: string | string[]): boolean {
+  let patterns: string[];
+  if (Array.isArray(pattern)) patterns = pattern;
+  else patterns = pattern.split(',');
+
+  for (const pattern of patterns) {
+    // Split both type and pattern into segments
+    const typeSegments = type.split('/');
+    const patternSegments = pattern.split('/');
+
+    // Special case: empty pattern matches nothing
+    if (patternSegments.length === 0) return false;
+
+    // Handle wildcard patterns
+    for (let i = 0; i < patternSegments.length; i++) {
+      const patternSegment = patternSegments[i];
+
+      // Match any descendant with "**"
+      if (patternSegment === '**') {
+        return true; // Match all remaining segments
+      }
+
+      // Match any segment with "*"
+      if (patternSegment === '*') {
+        // Continue checking subsequent segments
+        if (i >= typeSegments.length) return false;
+        continue;
+      }
+
+      // Handle exact match requirements
+      if (i >= typeSegments.length || typeSegments[i] !== patternSegment) {
+        return false;
+      }
+    }
+
+    // If we've exhausted the pattern but still have type segments,        
+    // only match if pattern ends with a wildcard
+    if (typeSegments.length === patternSegments.length) return true;
+  }
+  return false;
+}
 
 function copyComputedSize(source: HTMLElement, target: HTMLElement) {
   const computedStyle = window.getComputedStyle(source);
@@ -333,11 +375,8 @@ function getValidDroppableUnderMouse(event: DragEvent, type: string): { isValid:
     return { isValid: false, dropTarget: null };
   }
 
-  // Extract accepted types from data attribute
-  const acceptedTypes = dropZone.dataset.droppableAccepts?.split(",").map((type) => type.trim()) || [];
-
   // Check if dropzone accepts this type
-  if (acceptedTypes.includes("*") || acceptedTypes.includes(type)) {
+  if (matchesDndType(type, dropZone.dataset.droppableAccepts || "")) {
     return { isValid: true, dropTarget: dropZone };
   } else {
     return { isValid: false, dropTarget: dropZone };
