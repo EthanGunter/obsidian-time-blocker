@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { draggable } from "src/lib/dnd";
+	import { moment } from "obsidian";
 
 	export let task: TaskData;
 
 	function handleMove(direction: "up" | "down" | "discard") {
 		// TODO: Implement period movement logic
 		console.log(`Moving task ${direction}`);
-	}	
+	}
 </script>
 
 <div
@@ -32,7 +33,9 @@
 		✕
 	</button> -->
 	<div class="task-content">
-		{task.content}
+		{task.content} - {moment(task.metadata.scheduled?.start).format(
+			"hh:mma",
+		)}
 	</div>
 	<!-- <button
 		class="move-up"

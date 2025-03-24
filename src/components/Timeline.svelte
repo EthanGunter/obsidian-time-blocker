@@ -1,20 +1,16 @@
 <script lang="ts">
-	import { moment } from "obsidian";
+	import { moment, Tasks } from "obsidian";
 	import type TimeBlockPlugin from "src/main";
 	import {
-		getTasksFrom,
+		getTasksFromFile,
 		updateTaskInFile,
 		serializeTask,
 	} from "src/lib/taskUtilities";
 	import TaskTimelineView from "./TaskTimelineView.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
-	import {
-		draggable,
-		droppable,
-		type DragData,
-		type DropEvent,
-	} from "src/lib/dnd";
+	import { droppable, type DragData, type DropEvent } from "src/lib/dnd";
+	import { taskStore } from "src/stores/tasks";
 
 	let timeRange: { start: moment.Moment; end: moment.Moment } = {
 		start: moment("06:00a", "hh:mma"),
@@ -25,34 +21,21 @@
 	const BLOCK_SPAN: number = 60; // minutes
 	const SNAP_INCREMENT: number = 15; // minutes
 
-	onMount(() => {
-		loadScheduledTasks();
-	});
+	let filepath = "";
 	let plugin: TimeBlockPlugin;
-	pluginStore.subscribe((value) => (plugin = value));
-	let scheduledTasks: TaskData[];
-	$: scheduledTasks = [];
+	pluginStore.subscribe((value) => {
+		plugin = value;
+		filepath =
+			moment().format(plugin.getPeriodSetting("daily").format) + ".md";
+	});
 
-	import { Notice } from "obsidian";
-
-	async function loadScheduledTasks() {
-		// Get today's file path using daily format
-		const dailyFormat = plugin.getPeriodSetting("daily").format;
-		const filepath = moment().format(dailyFormat) + ".md";
-
-		try {
-			const tasks = await getTasksFrom(filepath);
-			// console.log(tasks);
-
-			scheduledTasks = tasks.filter((t) => t.metadata.scheduled);
-		} catch (e) {
-			new Notice(
-				"Failed to load scheduled tasks. Check console for details.",
-			);
-			console.error("[TimeBlock] Failed to load scheduled tasks:", e);
-			scheduledTasks = [];
-		}
-	}
+	const fileData = taskStore.getFileData(filepath);
+	onMount(() => {
+		taskStore.watchFile(filepath);
+		return () => {
+			taskStore.unwatchFile(filepath);
+		};
+	});
 
 	const BLOCK_HEIGHT = 2; //rem
 	const TIME_COLUMN_WIDTH = "3rem";
@@ -125,10 +108,10 @@
 			`${serializeTask(updatedTask)}`,
 		);
 
-		if (success) {
-			// Refresh displayed tasks
-			await loadScheduledTasks();
-		}
+		// if (success) {
+		// 	// Refresh displayed tasks
+		// 	await loadScheduledTasks();
+		// }
 	}
 
 	function handleTaskDrop(
@@ -140,7 +123,6 @@
 		},
 	) {
 		const { type, data } = e.detail;
-		if (type !== "task") return;
 
 		scheduleTask(data, slot.time);
 	}
@@ -155,8 +137,7 @@
 		},
 	) {
 		const curTarg = event.currentTarget as HTMLElement;
-		console.log(curTarg.classList.toString());
-		
+
 		const y = curTarg.getBoundingClientRect().top;
 		const x =
 			curTarg.querySelector(".timeline-block")?.getBoundingClientRect()
@@ -192,17 +173,19 @@
 			</div>
 		{/each}
 
-		{#each scheduledTasks as task}
-			{#if task.metadata.scheduled}
-				<TaskTimelineView
-					{task}
-					positionStyle={calcPositionParams(
-						task.metadata.scheduled.start,
-						task.metadata.scheduled.end,
-					)}
-				/>
-			{/if}
-		{/each}
+		{#if $fileData}
+			{#each $fileData.tasks as task}
+				{#if task.metadata.scheduled}
+					<TaskTimelineView
+						{task}
+						positionStyle={calcPositionParams(
+							task.metadata.scheduled.start,
+							task.metadata.scheduled.end,
+						)}
+					/>
+				{/if}
+			{/each}
+		{/if}
 	</div>
 </div>
 

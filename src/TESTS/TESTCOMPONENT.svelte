@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { draggable, droppable } from "./lib/dnd";
+	import { draggable, droppable } from "../lib/dnd";
+	import TEST from "./TEST_WrappedComponent.svelte";
 </script>
 
 <h1>TEST</h1>
@@ -23,6 +24,8 @@
 		>
 			Cake
 		</div>
+		<TEST type="test">Test (wrapped)</TEST>
+		<TEST type="lie">Cake (wrapped)</TEST>
 	</div>
 	<div class="drop-container">
 		<div
@@ -70,6 +73,8 @@
 		// width: 100%;
 		display: flex;
 		flex-direction: row;
+		gap: 2rem;
+		padding: 2rem;
 	}
 
 	.drop-target {
@@ -93,12 +98,19 @@
 		padding: 1rem;
 	}
 
-	// :global .dnd-ghost.valid-drop {
-	//     background-color: green;
-	// 	border: 3px solid white;
-	// }
+	:global .dnd-ghost.valid-drop {
+		background-color: blue;
+		border: 3px solid white;
+	}
+	:global .dnd-ghost.invalid-drop {
+		background-color: orange;
+		border: 3px solid white;
+	}
 
-	// :global .dnd-droppable.valid-drop{
-	//     background-color: greenyellow;
-	// }
+	:global .dnd-droppable.valid-drop {
+		background-color: greenyellow;
+	}
+	:global .dnd-droppable.invalid-drop {
+		background-color: orangered;
+	}
 </style>

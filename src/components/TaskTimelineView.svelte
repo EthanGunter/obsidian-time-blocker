@@ -36,7 +36,7 @@
 	use:draggable={{
 		type: "task",
 		data: task,
-		devDelay: 60000,
+		// devDelay: 60000,
 	}}
 	style={serializedStyle}
 >

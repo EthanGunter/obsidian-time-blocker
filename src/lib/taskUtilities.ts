@@ -8,7 +8,7 @@ const SCHEDULE_DATE_REGEX = /⏳ (\d{4}-\d{1,2}-\d{1,2})/gi;
 const ARCHIVE_REGEX = /❌ (\d{4}-\d{2}-\d{2})/gi;
 const TIME_FORMAT = "hh:mma";
 
-export async function getTasksFrom(filepath: string): Promise<TaskData[]> {
+export async function getTasksFromFile(filepath: string): Promise<TaskData[]> {
     const file = get(pluginStore).app.vault.getAbstractFileByPath(filepath);
     if (!file) {
         new Notice(`FILE NOT FOUND: ${filepath}`);
@@ -22,6 +22,9 @@ export async function getTasksFrom(filepath: string): Promise<TaskData[]> {
 
         return taskStrings.map(task => deserializeTask(task));
     } else return [];
+}
+export function getTasksFromContent(content: string): TaskData[] {
+    return parseTasks(content).map(task => deserializeTask(task));
 }
 
 export function serializeTask(task: TaskData): string {
@@ -96,7 +99,7 @@ export async function updateTaskInFile(filePath: string, originalRaw: string, up
         try {
             const content = await get(pluginStore).app.vault.read(file);
             const updatedContent = content.replace(originalRaw, updatedTask);
-            
+
             await get(pluginStore).app.vault.modify(file, updatedContent);
             return true;
         } catch (error) {

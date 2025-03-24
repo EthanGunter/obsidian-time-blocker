@@ -11,12 +11,12 @@
 .dnd-ghost.valid-drop {
   background-color: #00ff0055;
 }
-.dnd-droppable.valid-drop {
-  background-color: #00ff0055;
-}
 .dnd-ghost.invalid-drop {
   background-color: #ff000055;
 }
+.dnd-droppable.valid-drop {
+  outline: 1px solid #00ff0055;
+}
 .dnd-droppable.invalid-drop {
-  background-color: #ff000055;
+  outline: 1px solid #ff000055;
 }

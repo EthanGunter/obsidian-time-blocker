@@ -1,6 +1,6 @@
 import { App, Modal } from "obsidian";
 import type TimeBlockPlugin from "src/main";
-import TESTCOMPONENT from "src/TESTCOMPONENT.svelte";
+import TESTCOMPONENT from "src/TESTS/TESTCOMPONENT.svelte";
 
 export class TESTMODAL extends Modal {
   component: any = null;

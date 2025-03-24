@@ -4,7 +4,8 @@ import { TimeBlockSidebarView, VIEW_TYPE_TIMEBLOCK } from "./ui/TimeBlockSidebar
 import { TimeBlockSettingsTab } from "./ui/settings";
 import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./lib/settingsUtilities";
 import { pluginStore } from "src/stores/plugin";
-import { TESTMODAL } from "./TESTVIEW";
+import { TESTMODAL } from "./TESTS/TESTVIEW";
+import { taskStore } from "./stores/tasks";
 
 export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {
@@ -13,8 +14,8 @@ export default class TimeBlockPlugin extends Plugin {
     async onload() {
         // TODO remove after testing:
         this.app.workspace.onLayoutReady(() => {
-            new TESTMODAL(this.app, this).open();
-            // new TimeBlockModal(this.app, this).open();
+            // new TESTMODAL(this.app, this).open();
+            new TimeBlockModal(this.app, this).open();
         })
 
         await this.loadSettings();
@@ -44,6 +45,7 @@ export default class TimeBlockPlugin extends Plugin {
         this.addSettingTab(new TimeBlockSettingsTab(this.app, this));
 
         pluginStore.set(this);
+        taskStore.initialize(this.app.vault);
     }
 
     async loadSettings() {
