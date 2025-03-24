@@ -1,49 +1,109 @@
-<div align="center">
-  <h1>🪨 Obsidian Plugin Creation</h1>
-  <p>How to create your own Obsidian plugin</p>
-</div>
+# Time-Blocker Plugin Reference Document
 
-# About Obsidian
+## Core Purpose
+**A manual priority refinement system** that helps users:
+1. Curate tasks across time horizons 
+2. Maintain intentional focus through active commitment
+3. Preserve decision history without content duplication
 
-- [Obsidian](https://obsidian.md) is a **note taking** app based on Markdown files
-- It's **extensible**
+## Review Rhythm
+| Period   | Default Review Time       | Note Integration         |
+|----------|---------------------------|--------------------------|
+| Daily    | Morning/Evening choice    | Embedded in daily note   |
+| Weekly   | Sunday 5:00 PM            | Dedicated weekly review  |
+| Monthly  | Last Sunday 4:00 PM       | Monthly goal section     |
+| Quarterly| Final Sunday 3:00 PM      | Quarterly roadmap        |
+| Yearly   | December 30th 2:00 PM     | Annual planning document |
 
-# About this plugin
+- All non-daily periods are optionally enabled
+- The timing of the review period doesn't matter as much as the order they happen in, in the event of overlapping reiew periods
 
-- Simple plugin, that counts the number of lines of the active file
-- The line count will be visible in the status bar
+## Interface Requirements
+1. **Task List Interface**
+   - Vertical list of tasks from current + parent periods
+   - Faded display for archived/descoped tasks
+   - Per-task controls: ◀︎ ✕ ▶︎ 
+      - **▶︎**: Move up in priority (Year→Quarter→Month→Week→Day)
+        - Creates a copy of the task in the period actively being reviewed
+      - **◀︎**: Move down in priority (Day→Week→Month→Quarter→Year)
+        - Creates a copy in the next longest period if it isn't already there. Either marks the task in the current period as cancelled or deletes the task, depending on settings
+      - **✕**: Marks the task as discarded.
+    - Hovering a task highlights any tasks with the same pre-metadata text in parent periods
 
-# Resources
+2. **Time-Blocking Canvas**
+   - Vertical timeline (6:00 AM - 10:00 PM default)
+   - Variable increments size with magnetic snapping
+   - Drag-to-create blocks from unassigned tasks
+   - Drag top/bottom of block to set start/end time
 
-- Official [Obsidian Plugin Template](https://github.com/obsidianmd/obsidian-sample-plugin)
-- Unofficial [Obsidian Plugin Developer Docs](https://marcus.se.net/obsidian-plugin-docs)
+## Implementation Foundations
+1. **Task Matching Rules**
+   - Text match before first metadata marker
+   - Exclude completed tasks (`[x]`)
+   - Exclude tasks with cancelled markers
 
-# Usage
+2. **Metadata Strategy**  
+   Uses native Obsidian task syntax with extensions:
+   
+   - **Archive Marker**: Uses cancelled date emoji with timestamp  
+     `❌ 2025-03-07`
+   - **Time Blocking**: Scheduled time range  
+     `@14:00-15:30`
 
-**Requirement**
+3. **Configuration Interface with Defaults**
+```ts
+// Uses Obsidian's date format syntax
+periodFileFormats: {
+  daily: "[Journal/Daily/]YYYY-MM-DD",      // ISO Date
+  weekly: "[Journal/Weekly/]YYYY-[W]WW",     // ISO Week 
+  monthly: "[Journal/Monthly/]YYYY-MM",       // ISO Month
+  quarterly: "[Journal/Quarterly/]YYYY-[Q]Q",   // ISO Quarter
+  yearly: "[Journal/Yearly/]YYYY"            // Calendar Year
+},
+taskHeaderName: "tasks", // The section to pull tasks from
+viewSettings: {
+  increment: "30-min", // "15-min" | "30-min" | "hour"
+},
+behaviorSettings: {
+  deleteTasksWhenMoving: false, // When moving tasks to a longer period, should the current task be deleted?
+}
+```
 
-- [Obsidian](https://obsidian.md)
-- [Git](https://git-scm.com)
-- [GitHub](https://github.com) account
-- [Node.js](https://nodejs.org)
-- Code Editor (I recommend [VSCode](https://code.visualstudio.com))
-- Basic [TypeScript](https://www.typescriptlang.org) knowledge
+*Last Updated: 2025-03-07* 
 
-**Installation**
 
-1. Open terminal
-2. `cd path/to/your/obsidian/vault/.obsidian/plugins`
-3. `git clone https://github.com/flolu/obsidian-plugin`
-4. `npm install`
-5. `npm run dev`
-6. In Obsidian, press `Ctrl + P` and select `Reload app without saving`
-7. In Obsidian, go to settings -> Community plugins -> Enable "Example Plugin"
+# For AI agents
+1. Variables cannot be used in svelte <style> blocks. CSS variables must be used instead with <div style="--my-var: 1"> & var(--my-var)
+2. This plugin will be heavily used on mobile platforms as well as desktop, so design considerations should be made accordingly
+3. When creating components, prefer as minimal styling as possible. Layout only to begin with. We'll do a styling pass once all the logic & UX is established
 
-**Commands**
+## Currently working on
+// Regularly update this section with the current objective at the top, and tasks that have been postponed in favor of an MVP status below that.
+1. Daily time-blocking functionality
+    - [ ] Visual timeline with scheduled task blocks
+    - [ ] Basic drag-to-schedule interaction
+    - [ ] File change synchronization
 
-- `npm i` (Install dependencies)
-- `npm run dev` (Install dependencies)
+ Postponed for MVP:
+ - Touch drag and drop
+ - Multi-period navigation
+ - Task movement between periods
+ - Scheduled time conflict resolution
+ - Obsidian syntax abstraction
 
-**Releasing**
 
-- [Releasing new releases](https://github.com/obsidianmd/obsidian-sample-plugin#releasing-new-releases)
+## Useful documentation pages
+### Obsidian
+- Plugin guidelines & best practices: https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
+- Workspace layout: https://docs.obsidian.md/Plugins/User+interface/Workspace
+- Settings: https://docs.obsidian.md/Plugins/User+interface/Settings
+- Accessing files: https://docs.obsidian.md/Plugins/Vault
+- Hooking in to events: https://docs.obsidian.md/Plugins/Events
+- Views: https://docs.obsidian.md/Plugins/User+interface/Views
+- Modals: https://docs.obsidian.md/Plugins/User+interface/Modals
+- Ribbon actions: https://docs.obsidian.md/Plugins/User+interface/Ribbon+actions
+- Right-to-left accessibility: https://docs.obsidian.md/Plugins/User+interface/Right-to-left
+
+#### Submission and requirements
+- Overview: https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin
+- Requirements: https://docs.obsidian.md/Plugins/Releasing/Submission+requirements+for+plugins

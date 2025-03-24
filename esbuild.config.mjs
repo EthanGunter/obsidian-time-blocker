@@ -4,6 +4,8 @@ import builtins from "builtin-modules";
 import esbuildSvelte from "esbuild-svelte";
 import sveltePreprocess from "svelte-preprocess";
 import { sassPlugin } from 'esbuild-sass-plugin';
+import path from "path";
+import fs from 'fs';
 
 const banner =
 	`/*
@@ -13,16 +15,26 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === "production");
+const renameCssPlugin = {
+	name: 'rename-css',
+	setup(build) {
+		build.onEnd(() => {
+			fs.existsSync('main.css') && fs.renameSync('main.css', 'styles.css');
+		});
+	},
+};
 
 const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
-	entryPoints: ["src/main.ts"],
+	entryPoints: ["src/main.ts", "src/styles.scss"],
+	outdir: ".",
 	bundle: true,
+	minify: prod,
 	plugins: [
 		sassPlugin({
-			type: 'css-text',
+			type: 'css',
 			filter: /\.scss$/,
 		}),
 		esbuildSvelte({
@@ -30,11 +42,14 @@ const context = await esbuild.context({
 			preprocess: sveltePreprocess({
 				scss: {
 					renderSync: true,
-					includePaths: ['./src/*'],
-					prependData: `@import 'src/lib/dnd.scss';`
+					includePaths: [
+						path.resolve('./src'),
+						path.resolve('./src/lib')
+					],
 				}
 			})
 		}),
+		renameCssPlugin
 	],
 	external: [
 		"obsidian",
@@ -56,7 +71,6 @@ const context = await esbuild.context({
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
-	outfile: "main.js",
 	loader: {
 		'.scss': 'css'
 	},
@@ -68,3 +82,4 @@ if (prod) {
 } else {
 	await context.watch();
 }
+

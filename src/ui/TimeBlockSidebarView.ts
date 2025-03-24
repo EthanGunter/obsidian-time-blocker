@@ -28,10 +28,7 @@ export class TimeBlockSidebarView extends ItemView {
 
     async onOpen() {
         this.component = new CalendarDay({
-            target: this.containerEl.children[1],
-            props: {
-                droppable: false
-            }
+            target: this.containerEl.children[1]
         });
     }
 

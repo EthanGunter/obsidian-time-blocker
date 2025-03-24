@@ -3,7 +3,8 @@
 	import type TimeBlockPlugin from "src/main";
 	import { pluginStore } from "src/stores/plugin";
 	import { getTasksFrom } from "src/lib/taskUtilities";
-	import TaskView from "./TaskModalView.svelte";
+	import TaskModalView from "./TaskModalView.svelte";
+	import { draggable } from "src/lib/dnd";
 
 	export let period: Period = "daily";
 
@@ -63,7 +64,7 @@
 	{:else}
 		<div class="task-list">
 			{#each tasks as task}
-				<TaskView {task} />
+				<TaskModalView {task} />
 			{/each}
 		</div>
 	{/if}

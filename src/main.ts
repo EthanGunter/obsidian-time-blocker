@@ -4,12 +4,19 @@ import { TimeBlockSidebarView, VIEW_TYPE_TIMEBLOCK } from "./ui/TimeBlockSidebar
 import { TimeBlockSettingsTab } from "./ui/settings";
 import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./lib/settingsUtilities";
 import { pluginStore } from "src/stores/plugin";
+import { TESTMODAL } from "./TESTVIEW";
 
 export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {
     settings: TimeBlockPlannerSettings;
 
     async onload() {
+        // TODO remove after testing:
+        this.app.workspace.onLayoutReady(() => {
+            new TESTMODAL(this.app, this).open();
+            // new TimeBlockModal(this.app, this).open();
+        })
+
         await this.loadSettings();
 
         // Register views
@@ -18,9 +25,13 @@ export default class TimeBlockPlugin extends Plugin {
             (leaf) => new TimeBlockSidebarView(leaf, this)
         );
 
-        // Add ribbon icon for modal
+        // Add ribbon icon for modal using Lucide icons
         this.addRibbonIcon("cuboid", "Time Block Planner", () => {
             new TimeBlockModal(this.app, this).open();
+        });
+
+        this.addRibbonIcon("flask-conical", "TEST", () => {
+            new TESTMODAL(this.app, this).open();
         });
 
         // Add command for sidebar view

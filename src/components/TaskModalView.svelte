@@ -1,15 +1,23 @@
 <script lang="ts">
+	import { draggable } from "src/lib/dnd";
 
 	export let task: TaskData;
 
 	function handleMove(direction: "up" | "down" | "discard") {
 		// TODO: Implement period movement logic
 		console.log(`Moving task ${direction}`);
-	}
+	}	
 </script>
 
-<div class="task-view">
-	<button
+<div
+	class="modal-task"
+	use:draggable={{
+		type: "task",
+		data: task,
+		// devDelay: 60000,
+	}}
+>
+	<!-- <button
 		class="move-down"
 		on:click={() => handleMove("down")}
 		title="Move to longer period"
@@ -22,41 +30,41 @@
 		title="Discard task"
 	>
 		✕
-	</button>
+	</button> -->
 	<div class="task-content">
 		{task.content}
 	</div>
-	<button
+	<!-- <button
 		class="move-up"
 		on:click={() => handleMove("up")}
 		title="Move to shorter period"
 	>
 		▶︎
-	</button>
+	</button> -->
 </div>
 
 <style lang="scss">
-	.task-view {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		width: 100%;
-		padding: 0.25rem;
-		background: var(--background-secondary);
-		border: 1px solid var(--background-modifier-border);
-		border-radius: 4px;
-		transition: transform 0.1s ease;
+	.modal-task {
+		// position: relative;
+		// display: flex;
+		// align-items: center;
+		// gap: 0.5rem;
+		// width: 100%;
+		// padding: 0.25rem;
+		// background: var(--background-secondary);
+		// border: 1px solid var(--background-modifier-border);
+		// border-radius: 0.2rem;
+		// transition: transform 0.1s ease;
 
-		&:hover {
-			z-index: 1;
-			transform: scale(1.02);
-			box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
+		// &:hover {
+		// 	z-index: 1;
+		// 	transform: scale(1.02);
+		// 	box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
 
-			.task-controls {
-				opacity: 1;
-			}
-		}
+		// 	.task-controls {
+		// 		opacity: 1;
+		// 	}
+		// }
 	}
 
 	.task-content {
@@ -86,5 +94,9 @@
 				color: var(--text-normal);
 			}
 		}
+	}
+
+	.dnd-ghost {
+		background-color: red;
 	}
 </style>

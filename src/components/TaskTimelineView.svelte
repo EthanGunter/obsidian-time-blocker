@@ -1,10 +1,5 @@
 <script lang="ts">
-	import {
-		DefaultGhostPosition,
-		draggable,
-		type DragData,
-		type GhostRenderFunction,
-	} from "src/lib/dnd";
+	import { draggable } from "src/lib/dnd";
 	import { createEventDispatcher } from "svelte";
 	import { moment } from "obsidian";
 
@@ -38,11 +33,10 @@
 
 <div
 	class="timeline-task"
-	{...$$props}
 	use:draggable={{
 		type: "task",
 		data: task,
-		onGhostPosition: () => ({ x: null, y: null }),
+		devDelay: 60000,
 	}}
 	style={serializedStyle}
 >
@@ -60,13 +54,11 @@
 		position: absolute;
 		display: flex;
 		flex-direction: column;
-		background: var(--background-modifier-border);
 		background-color: color-mix(
 			in srgb,
 			var(--background-modifier-border),
 			transparent 70%
 		);
-		cursor: move;
 
 		border-radius: 0.2rem;
 		&:hover {
@@ -82,6 +74,7 @@
 		padding: 0 0.4em;
 		font-size: 0.9em;
 	}
+
 	.resize-handle {
 		height: 0.5rem;
 
@@ -100,9 +93,5 @@
 		&.bottom:hover {
 			border-width: 0 0 3px 0;
 		}
-	}
-
-	.dnd-ghost {
-		background-color: green;
 	}
 </style>

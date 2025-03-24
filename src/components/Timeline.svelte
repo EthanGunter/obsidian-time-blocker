@@ -10,10 +10,10 @@
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
 	import {
+		draggable,
 		droppable,
 		type DragData,
 		type DropEvent,
-		type GhostPositionFunction,
 	} from "src/lib/dnd";
 
 	let timeRange: { start: moment.Moment; end: moment.Moment } = {
@@ -155,6 +155,8 @@
 		},
 	) {
 		const curTarg = event.currentTarget as HTMLElement;
+		console.log(curTarg.classList.toString());
+		
 		const y = curTarg.getBoundingClientRect().top;
 		const x =
 			curTarg.querySelector(".timeline-block")?.getBoundingClientRect()
@@ -241,14 +243,5 @@
 		border-inline-end: 2px solid var(--background-modifier-border);
 		border-inline-start: 2px solid var(--background-modifier-border);
 		height: 2rem;
-	}
-
-	:global(.dragging) {
-		cursor: grabbing;
-		opacity: 0.7;
-	}
-
-	:global(.no-select) {
-		user-select: none !important;
 	}
 </style>

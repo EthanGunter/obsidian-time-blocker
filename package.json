@@ -15,6 +15,7 @@
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
 		"builtin-modules": "3.3.0",
+		"chokidar": "^4.0.3",
 		"esbuild": "^0.25.1",
 		"esbuild-sass-plugin": "^3.3.1",
 		"esbuild-svelte": "^0.7.1",
@@ -26,5 +27,8 @@
 		"tslib": "2.4.0",
 		"typescript": "~5.0.0"
 	},
-	"sourceMap": true
+	"sourceMap": true,
+	"dependencies": {
+		"dot-env": "^0.0.1"
+	}
 }

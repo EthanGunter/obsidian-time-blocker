@@ -5,7 +5,7 @@
 
 <div class="timeblock-container">
 	<PeriodView period="daily" />
-	<Timeline droppable />
+	<Timeline />
 </div>
 
 <style lang="scss">
