@@ -6,10 +6,15 @@
 		updateTaskInFile,
 		serializeTask,
 	} from "src/lib/taskUtilities";
-	import TaskTimelineView from "./TaskTimelineView.svelte";
+	import TaskView from "./TimelineTask.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
-	import { droppable, type DragData, type DropEvent } from "src/lib/dnd";
+	import {
+		DndDragEvent,
+		droppable,
+		type DragPositionData,
+		type DropEvent,
+	} from "src/lib/dnd";
 	import { taskStore } from "src/stores/tasks";
 
 	let timeRange: { start: moment.Moment; end: moment.Moment } = {
@@ -125,14 +130,14 @@
 			index: number;
 		},
 	) {
-		const { type, data } = e.detail as { type: string; data: TaskData };
-		if (type.includes("resize")) {
+		const { draggableType, data } = e.detail;
+		if (draggableType.includes("resize")) {
 			if (!data.metadata.scheduled)
 				throw new Error(
 					"Task resized before being scheduled. How the hell did you do that?",
 				);
 			// Task resize
-			const direction = type.split("resize/")[1];
+			const direction = draggableType.split("resize/")[1];
 
 			if (direction == "start") {
 				scheduleTask(data, slot.time, data.metadata.scheduled?.end);
@@ -170,19 +175,18 @@
 	}
 
 	function handleGhostPosition(
-		event: DragEvent,
-		args: DragData,
+		{ overElement: currTarg }: DragPositionData,
 		slot: {
 			time: moment.Moment;
 			isHourMark: boolean;
 			index: number;
 		},
 	) {
-		const curTarg = event.currentTarget as HTMLElement;
+		if (!currTarg) return { x: null, y: null };
 
-		const y = curTarg.getBoundingClientRect().top;
+		const y = currTarg.getBoundingClientRect().top;
 		const x =
-			curTarg.querySelector(".timeline-block")?.getBoundingClientRect()
+			currTarg.querySelector(".timeline-block")?.getBoundingClientRect()
 				.left ?? 0;
 
 		return { x, y };
@@ -199,8 +203,8 @@
 					onDrop: (e) => {
 						handleTaskDrop(e, slot);
 					},
-					onGhostPosition: (evt, args) => {
-						return handleGhostPosition(evt, args, slot);
+					onGhostPosition: (args) => {
+						return handleGhostPosition(args, slot);
 					},
 				}}
 				class="timeline-slot"
@@ -218,7 +222,7 @@
 		{#if $fileData}
 			{#each $fileData.tasks as task}
 				{#if task.metadata.scheduled}
-					<TaskTimelineView
+					<TaskView
 						{task}
 						positionStyle={calcPositionParams(
 							task.metadata.scheduled.start,

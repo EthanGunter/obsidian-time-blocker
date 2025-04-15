@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { draggable } from "src/lib/dnd";
+	import { draggable, dragGroup } from "src/lib/dnd";
 	import { createEventDispatcher } from "svelte";
 	import { moment } from "obsidian";
 
@@ -20,6 +20,7 @@
 
 <div
 	class="timeline-task"
+	use:dragGroup
 	use:draggable={{
 		type: "task",
 		data: task,

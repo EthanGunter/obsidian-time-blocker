@@ -2,7 +2,7 @@
 	import { moment, Notice } from "obsidian";
 	import type TimeBlockPlugin from "src/main";
 	import { pluginStore } from "src/stores/plugin";
-	import TaskModalView from "./TaskModalView.svelte";
+	import TaskView from "./ModalTask.svelte";
 	// import { getTasksFromFile } from "src/lib/taskUtilities";
 	import { taskStore } from "src/stores/tasks";
 	import { onMount } from "svelte";
@@ -45,7 +45,7 @@
 		{:else}
 			<div class="tasks-container">
 				{#each $fileData.tasks as task}
-					<TaskModalView {task} />
+					<TaskView {task} />
 				{/each}
 			</div>
 		{/if}
