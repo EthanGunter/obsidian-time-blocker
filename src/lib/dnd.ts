@@ -1,9 +1,8 @@
 import { setContext, getContext } from "svelte";
 
-/* TODO
-1. Add animation support for ghosts (spring back to original position on failed drop)
-2. Add animation support for original node (spring to new position on successful drop)
-*/
+// TODO  Add animation support for ghosts (spring back to original position on failed drop)
+// TODO Add animation support for original node (spring to new position on successful drop)
+
 
 const CONTROLS_DRAGGABLE_ATTR = "data-controls-draggable";
 const DROPPABLE_ACCEPTS_ATTR = "data-droppable-accepts";
@@ -233,8 +232,7 @@ export function draggable<T>(
       if (!isDragging) return;
 
       const isTouchMove = moveEvent.type.includes("touch");
-      // Prevent scrolling on touch devices during drag
-      // TODO?
+      // TODO?  Prevent scrolling on touch devices during drag
       if (isTouchMove) moveEvent.preventDefault();
 
       const clientX = isTouchMove
