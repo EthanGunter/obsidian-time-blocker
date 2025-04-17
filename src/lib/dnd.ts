@@ -1,128 +1,168 @@
-import { setContext, getContext } from "svelte";
+import { setContext, getContext } from "svelte"; // Keep getContext for potential future use? Or remove? Let's remove for now.
 
-// TODO  Add animation support for ghosts (spring back to original position on failed drop)
-// TODO Add animation support for original node (spring to new position on successful drop)
+// TODO: Add animation support for ghosts (spring back on failed drop) - Requires animation library integration
+// TODO: Add animation support for original node (spring to new position on successful drop) - Requires animation library integration
 
-
-const CONTROLS_DRAGGABLE_ATTR = "data-controls-draggable";
+const CONTROLS_DRAGGABLE_ATTR = "data-controls-draggable"; // Used by droppable to indicate it influences ghost position
 const DROPPABLE_ACCEPTS_ATTR = "data-droppable-accepts";
-const DRAG_GROUP_ID_ATTR = "data-drag-group-id";
-
-// --- Drag Group Implementation ---
+const DRAG_GROUP_ID_ATTR = "data-drag-group-id"; // Marker for group boundaries
 
 let nextGroupId = 0;
+// Module-level store for Group APIs, replacing Svelte context for runtime access
+const groupApis = new Map<number, GroupApi>();
 
-// Context key generation function
-const getGroupContextKey = (id: number) => `drag-group-${id}`;
-
-// Information stored about each child in the group
-interface ChildInfo {
-  node: HTMLElement;
-  originalPointerEvents: string | null; // Store original style
-}
-
-// API provided by the dragGroup action via context
-interface GroupApi {
-  register: (childNode: HTMLElement) => GroupContext;
-  unregister: (childNode: HTMLElement) => void;
-  notifyDragStart: (draggingChildNode: HTMLElement) => void;
-  notifyDragEnd: (draggingChildNode: HTMLElement) => void;
-}
-
-// Context information returned to the child draggable
-export interface GroupContext {
-  groupNode: HTMLElement;
-  getGroupMembers: () => HTMLElement[];
-}
-
-// Params for the dragGroup action (currently none needed)
-interface DragGroupParams { }
-
-// Map to store original pointer-events for group members during drag
-const groupOriginalPointerEvents = new Map<HTMLElement, string | null>();
+// --- Drag Group Implementation ---
 
 export function dragGroup(node: HTMLElement, params?: DragGroupParams) {
   const uniqueGroupId = nextGroupId++;
   node.dataset.dragGroupId = uniqueGroupId.toString();
+  node.classList.add("dnd-group"); // Add class for potential styling/querying
 
-  const childMap = new Map<HTMLElement, ChildInfo>();
+  console.log("Initialized dragGroup:", uniqueGroupId, node);
   let currentlyDraggingNode: HTMLElement | null = null;
+  let nodeOrigPointerEvents = node.style.pointerEvents;
+  const members: HTMLElement[] = [];
 
-  const groupApi: GroupApi = {
-    register: (childNode) => {
-      childMap.set(childNode, {
-        node: childNode,
-        originalPointerEvents: childNode.style.pointerEvents || null,
-      });
-      // Return context for the child
-      return {
-        groupNode: node,
-        getGroupMembers: () => Array.from(childMap.keys()),
-      };
-    },
-    unregister: (childNode) => {
-      childMap.delete(childNode);
-      groupOriginalPointerEvents.delete(childNode); // Clean up stored style too
-    },
-    notifyDragStart: (draggingChildNode) => {
-      currentlyDraggingNode = draggingChildNode;
-      childMap.forEach((info, child) => {
-        if (child !== draggingChildNode) {
-          // Store original style before overriding
-          groupOriginalPointerEvents.set(
-            child,
-            child.style.pointerEvents || null
-          );
-          child.style.pointerEvents = "none";
-        }
-      });
-    },
-    notifyDragEnd: (draggingChildNode) => {
-      if (currentlyDraggingNode === draggingChildNode) {
-        currentlyDraggingNode = null;
-        childMap.forEach((info, child) => {
-          if (child !== draggingChildNode) {
-            // Restore original style
-            const originalStyle = groupOriginalPointerEvents.get(child);
-            if (originalStyle !== undefined) {
-              if (originalStyle === null) {
-                child.style.removeProperty("pointer-events");
-              } else {
-                child.style.pointerEvents = originalStyle;
-              }
-              groupOriginalPointerEvents.delete(child); // Clean up map entry
-            } else {
-              // Fallback if somehow original wasn't stored
-              child.style.removeProperty("pointer-events");
-            }
-          }
-        });
+  const notifyMemberDragStart = (draggingNode: HTMLElement) => {
+    if (currentlyDraggingNode) {
+      console.warn(
+        `Group ${uniqueGroupId}: Received drag start for`,
+        draggingNode,
+        "while already tracking",
+        currentlyDraggingNode
+      );
+      // TODO Optionally force-end the previous drag's state? Or ignore?
+      // For now, let's assume this is expected behavior.
+    }
+    currentlyDraggingNode = draggingNode;
+    console.log(`Group ${uniqueGroupId}: Drag started by`, draggingNode);
+
+    // Query potential draggable elements within this group node
+    const potentialMembers = node.querySelectorAll<HTMLElement>('[draggable="true"]');
+    potentialMembers.forEach((member) => {
+      // Check if *this* group node is the *closest* group ancestor
+      const closestGroup = member.closest<HTMLElement>(
+        `[${DRAG_GROUP_ID_ATTR}]`
+      );
+      if (closestGroup === node) {
+        members.push(member);
       }
-    },
+    });
+
+    nodeOrigPointerEvents = node.style.pointerEvents;
+
+    // Define the default behavior
+    const defaultPointerEventLogic = () => {
+      console.log(
+        `Group ${uniqueGroupId}: Running default pointer event logic`
+      );
+      node.style.pointerEvents = "none"; // Disable the group's pointer handling
+    };
+
+    // Check for and call the user override stored in the API object
+    const userOverride = groupApi._internal_onMemberDragStart; // Access stored override
+    if (userOverride) {
+      console.log(`Group ${uniqueGroupId}: Calling onMemberDragStart override`);
+      userOverride(
+        { draggingNode, groupNode: node, groupMembers: members },
+        defaultPointerEventLogic);
+    } else {
+      // No override, run default logic
+      defaultPointerEventLogic();
+    }
   };
 
-  setContext(getGroupContextKey(uniqueGroupId), groupApi);
+  const notifyMemberDragEnd = (draggingNode: HTMLElement) => {
+    if (currentlyDraggingNode !== draggingNode) {
+      console.warn(
+        `Group ${uniqueGroupId}: Received drag end for`,
+        draggingNode,
+        "but was tracking",
+        currentlyDraggingNode
+      );
+      // Don't clean up if it's not the node we were tracking
+      return;
+    }
+    console.log(`Group ${uniqueGroupId}: Drag ended by`, draggingNode);
+
+    // Define default cleanup behavior
+    const defaultCleanupLogic = () => {
+      console.log(
+        `Group ${uniqueGroupId}: Running default pointer event cleanup`
+      );
+      node.style.pointerEvents = nodeOrigPointerEvents; // Restore pointer handling 
+    };
+
+    // Check for and call the user override stored in the API object
+    const userOverride = groupApi._internal_onMemberDragEnd; // Access stored override
+    if (userOverride) {
+      console.log(`Group ${uniqueGroupId}: Calling onMemberDragEnd override`);
+      userOverride(
+        { draggingNode, groupNode: node, groupMembers: members },
+        defaultCleanupLogic);
+    } else {
+      // No override, run default cleanup
+      defaultCleanupLogic();
+    }
+
+    // Reset tracking state
+    currentlyDraggingNode = null;
+  };
+
+  const groupApi: GroupApi = {
+    groupNode: node,
+    groupId: uniqueGroupId,
+    notifyMemberDragStart, // Expose the handler
+    notifyMemberDragEnd, // Expose the handler
+    // Store overrides internally for the handlers to access
+    _internal_onMemberDragStart: params?.onMemberDragStart,
+    _internal_onMemberDragEnd: params?.onMemberDragEnd,
+  };
+
+  // Register the API in the module-level map
+  groupApis.set(uniqueGroupId, groupApi);
 
   return {
+    update(newParams?: DragGroupParams) {
+      const currentApi = groupApis.get(uniqueGroupId);
+      if (currentApi) {
+        // Update the stored internal overrides
+        currentApi._internal_onMemberDragStart = newParams?.onMemberDragStart;
+        currentApi._internal_onMemberDragEnd = newParams?.onMemberDragEnd;
+      }
+    },
     destroy() {
-      // Cleanup primarily driven by children calling unregister
-      // Clear any remaining stored styles just in case
-      groupOriginalPointerEvents.clear();
+      console.log("Destroying dragGroup:", uniqueGroupId, node);
+      // If a drag is somehow ongoing when destroyed, try to clean up pointer events
+      if (currentlyDraggingNode) {
+        node.style.pointerEvents = nodeOrigPointerEvents
+      }
+      groupApis.delete(uniqueGroupId);
+      node.removeAttribute(DRAG_GROUP_ID_ATTR);
+      node.classList.remove("dnd-group");
     },
   };
 }
 
 // --- Draggable Implementation ---
 
-export const DefaultGhostPosition: GhostPositionFunction = ({ clientX, clientY, axis, startX, startY, offsetX, offsetY }) => {
+export const DefaultGhostPosition: GhostPositionFunction = ({
+  clientX,
+  clientY,
+  axis,
+  startX,
+  startY,
+  offsetX,
+  offsetY,
+}) => {
   let x, y;
 
-  // Position ghost dynamically
+  // Position ghost dynamically based on axis constraint
   if (axis !== "y") x = clientX + offsetX;
-  else x = startX;
+  else x = startX; // Lock x
 
   if (axis !== "x") y = clientY + offsetY;
-  else y = startY;
+  else y = startY; // Lock y
 
   return { x, y };
 };
@@ -132,47 +172,22 @@ export function draggable<T>(
   {
     type: draggableType,
     data,
-    onDragStart,
-    onDragEnd,
-    onGhostRender,
-    onGhostPosition,
+    onDragStart, // User callback for native event
+    onDragEnd, // User callback for native event
+    onGhostRender, // Consolidated callback for ghost appearance AND position
     axis = "both",
     devDelay,
-  }: DraggableParams<T> // Removed 'handle'
+  }: DraggableParams<T>
 ) {
-  node.setAttribute("draggable", "true");
-  node.classList.add("dnd-draggable"); // Use classList for modern browsers
+  node.setAttribute("draggable", "true"); // Necessary for HTML drag API, though we override behavior
+  node.classList.add("dnd-draggable");
 
   let isDragging = false;
   let startX: number, startY: number, offsetX: number, offsetY: number;
   let ghost: HTMLElement;
 
-  // --- Group Integration ---
-  let groupApi: GroupApi | null = null;
-  let groupContext: GroupContext | null = null;
-
-  const groupElement = node.closest<HTMLElement>(`[${DRAG_GROUP_ID_ATTR}]`);
-  if (groupElement && groupElement.dataset.dragGroupId) {
-    try {
-      const groupId = parseInt(groupElement.dataset.dragGroupId, 10);
-      const contextKey = getGroupContextKey(groupId);
-      const retrievedApi = getContext<GroupApi | undefined>(contextKey);
-
-      if (retrievedApi) {
-        groupApi = retrievedApi;
-        // Register with the group and store the returned context
-        groupContext = groupApi.register(node);
-      }
-    } catch (e) {
-      console.error("Failed to get drag group context:", e);
-    }
-  }
-  // --- End Group Integration ---
-
   // Handle both mouse and touch start events
   function handleStart(event: MouseEvent | TouchEvent) {
-    // Removed handle check: if (handle && event.target !== handle) return;
-
     const isTouch = event.type === "touchstart";
     const clientX = isTouch
       ? (event as TouchEvent).touches[0].clientX
@@ -181,58 +196,71 @@ export function draggable<T>(
       ? (event as TouchEvent).touches[0].clientY
       : (event as MouseEvent).clientY;
 
-    // Cancel the default event
-    // Only prevent default for mouse events to allow touch scrolling etc.
-    // if (!isTouch) {
-    //   event.preventDefault();
-    // }
-    // Let's prevent default always for now to ensure drag starts reliably
+    // Prevent default actions like text selection or native drag
     event.preventDefault();
     event.stopPropagation();
 
     isDragging = true;
 
-    // --- Group Notification ---
-    if (groupApi) {
-      groupApi.notifyDragStart(node);
-    }
-    // --- End Group Notification ---
+    // --- Group Logic: Just-in-Time Detection ---
+    const groupElement = node.closest<HTMLElement>(`[${DRAG_GROUP_ID_ATTR}]`);
+    let groupApi: GroupApi | undefined;
 
-    // Create ghost
+    if (groupElement && groupElement.dataset.dragGroupId) {
+      const groupId = parseInt(groupElement.dataset.dragGroupId, 10);
+      groupApi = groupApis.get(groupId);
+      if (groupApi) {
+        console.log("Draggable notifying group", groupId, "of drag start");
+        // *** Notify the group that this node started dragging ***
+        groupApi.notifyMemberDragStart(node);
+      }
+    }
+
+    // Create ghost element
     ghost = node.cloneNode(true) as HTMLElement;
-    ghost.setAttribute("draggable", "false");
+    ghost.setAttribute("draggable", "false"); // Prevent nested dragging
     ghost.classList.remove("dnd-draggable");
     ghost.classList.add("dnd-ghost");
+    copyComputedSize(node, ghost); // Ensure ghost has same dimensions
 
-    copyComputedSize(node, ghost);
-
-    // Prevent pointer events on the original node while dragging
+    // Prevent pointer events on the original node while dragging its ghost
     const initialPointerEvents = node.style.pointerEvents;
-    // Use timeout 0 to ensure this runs after other start logic
+    // Use timeout 0 to ensure this runs after other start logic potentially setting pointerEvents
     setTimeout(() => {
       node.style.pointerEvents = "none";
     }, 0);
 
-    // Get initial cursor offset
+    // Calculate initial cursor offset relative to the node's top-left corner
     const rect = node.getBoundingClientRect();
     startX = rect.left;
     startY = rect.top;
     offsetX = rect.left - clientX;
     offsetY = rect.top - clientY;
 
-    document.body.appendChild(ghost);
+    document.body.appendChild(ghost); // Add ghost to the body
 
     // Dispatch custom dnd-dragstart event
-    const dragStartEvent = new DragStartEvent({ draggableType, data, node, ghost, clientX, clientY });
+    const dragStartEvent = new DragStartEvent({
+      draggableType: draggableType ?? "unknown", // Provide a default type
+      data,
+      node,
+      ghost,
+      clientX,
+      clientY,
+    });
     node.dispatchEvent(dragStartEvent);
 
-    let dropTarget: DroppableElement | null;
-    let lastDropTarget: DroppableElement | null;
+    // Call user's native drag start callback
+    onDragStart?.(event as DragEvent, node); // Cast might be needed
+
+    let dropTarget: DroppableElement | null = null;
+    let lastDropTarget: DroppableElement | null = null;
+
     function moveGhost(moveEvent: MouseEvent | TouchEvent) {
       if (!isDragging) return;
 
       const isTouchMove = moveEvent.type.includes("touch");
-      // TODO?  Prevent scrolling on touch devices during drag
+      // Prevent scrolling on touch devices during drag
       if (isTouchMove) moveEvent.preventDefault();
 
       const clientX = isTouchMove
@@ -242,139 +270,141 @@ export function draggable<T>(
         ? (moveEvent as TouchEvent).touches[0].clientY
         : (moveEvent as MouseEvent).clientY;
 
-      // Reset state-styling
-      ghost.classList.remove("valid-drop");
-      ghost.classList.remove("invalid-drop");
-      const gotDroppable = getValidDroppableUnderMouse(
-        { clientX: clientX, clientY: clientY } as DragEvent,
+      // Determine the potential drop target under the cursor
+      ghost.classList.remove("valid-drop", "invalid-drop"); // Reset visual state
+      const dropInfo = getValidDroppableUnderMouse(
+        { clientX, clientY } as DragEvent, // Cast needed for elementFromPoint
         draggableType ?? "any"
       );
-      dropTarget = gotDroppable?.dropTarget;
-      let dropTargetValid = gotDroppable?.isValid;
+      dropTarget = dropInfo?.dropTarget ?? null;
+      let dropTargetValid = dropInfo?.isValid;
 
-      const args: DragPositionData = {
+      // Prepare data for positioning and rendering callbacks
+      const posData: DragPositionData = {
         node,
         ghost,
         axis,
         clientX,
         clientY,
-        newX: clientX,
-        newY: clientY,
+        newX: null, // Will be calculated
+        newY: null, // Will be calculated
         startX,
         startY,
         offsetX,
         offsetY,
         overElement: dropTarget,
-        groupContext, // Include group context
+        groupApi: groupApi, // Pass group API if available
       };
 
-      const dragDetail: DndEventDetail = { draggableType, data, node, ghost, clientX, clientY };
+      // --- Event Dispatching for Droppables ---
+      const dragDetail: DndEventDetail = {
+        draggableType: draggableType ?? "unknown",
+        data,
+        node,
+        ghost,
+        clientX,
+        clientY,
+      };
 
-      // When target changes, dispatch leave/enter events
       if (dropTarget !== lastDropTarget) {
-        // Dispatch leave on previous target
         if (lastDropTarget) {
-          const leaveEvent = new DragLeaveEvent(dragDetail);
-          lastDropTarget.dispatchEvent(leaveEvent);
+          lastDropTarget.dispatchEvent(new DragLeaveEvent(dragDetail));
         }
-
-        // Dispatch enter on new target
         if (dropTarget) {
-          const enterEvent = new DragEnterEvent(dragDetail);
-          dropTarget.dispatchEvent(enterEvent);
+          dropTarget.dispatchEvent(new DragEnterEvent(dragDetail));
         }
       }
-
       if (dropTarget) {
-        // Always dispatch dragover on current target (if exists)
-        const overEvent = new DragOverEvent(dragDetail);
-        dropTarget.dispatchEvent(overEvent);
-
-        // Apply state-styling
-        if (dropTargetValid) {
-          ghost.classList.add("valid-drop");
-          // dropTarget = dropTarget; // This line seems redundant
-        } else {
-          ghost.classList.add("invalid-drop");
-        }
+        dropTarget.dispatchEvent(new DragOverEvent(dragDetail));
+        // Apply visual state to ghost based on drop target validity
+        ghost.classList.add(dropTargetValid ? "valid-drop" : "invalid-drop");
       }
-
-      // Update last target reference
       lastDropTarget = dropTarget;
+      // --- End Event Dispatching ---
 
+
+      // --- Ghost Positioning and Rendering ---
+      let finalX: number | null = null;
+      let finalY: number | null = null;
+
+      // 1. Check if Droppable wants to control position
       if (dropTarget?.getAttribute(CONTROLS_DRAGGABLE_ATTR) && dropTarget._dnd_onGhostPosition) {
-        // Let the drop-target handle positioning
-
-        const { x, y } = dropTarget._dnd_onGhostPosition(args);
-        args.newX = x ?? args.newX;
-        args.newY = y ?? args.newY;
-      }
-      else if (dropTargetValid) {
-        // Default ghost position to cursor
-        let { x, y } = DefaultGhostPosition(
-          args
-        );
-
-        args.newX = x ?? args.newX;
-        args.newY = y ?? args.newY;
-
-        if (onGhostPosition) {
-          let pos: { x: number | null; y: number | null } = {
-            x: args.newX,
-            y: args.newY,
-          };
-          // Pass groupContext to onGhostPosition
-          pos = onGhostPosition(args);
-          x = pos.x;
-          y = pos.y;
-        }
-
+        const controlledPos = dropTarget._dnd_onGhostPosition(posData);
+        finalX = controlledPos.x;
+        finalY = controlledPos.y;
       } else {
-        const { x, y } = DefaultGhostPosition(args);
-        args.newX = x ?? args.newX;
-        args.newY = y ?? args.newY;
+        // 2. Default position calculation if droppable doesn't control
+        const defaultPos = DefaultGhostPosition(posData);
+        finalX = defaultPos.x;
+        finalY = defaultPos.y;
       }
 
-      ghost.style.left = args.newX !== null ? `${args.newX}px` : "";
-      ghost.style.top = args.newY !== null ? `${args.newY}px` : "";
-      // Pass groupContext to onGhostRender
-      onGhostRender?.(ghost, args);
+      // Update posData with the calculated position before passing to render callback
+      posData.newX = finalX;
+      posData.newY = finalY;
+
+      // 3. Define the function to apply position (used by default or override)
+      const setPosition = (x: number | null, y: number | null) => {
+        ghost.style.left = x !== null ? `${x}px` : "";
+        ghost.style.top = y !== null ? `${y}px` : "";
+      };
+
+      // 4. Call user's onGhostRender override (if provided)
+      if (onGhostRender) {
+        const renderDetail = {
+          ghost,
+          node,
+          posData,
+          setPosition,
+        };
+        onGhostRender(renderDetail);
+        // User's override is responsible for calling setPosition if they want positioning
+      } else {
+        // 5. Default behavior: Apply the calculated position
+        setPosition(finalX, finalY);
+      }
+      // --- End Ghost Positioning and Rendering ---
     }
 
     moveGhost(event); // Initial positioning
 
+    // Add move listeners
     document.addEventListener("mousemove", moveGhost);
     document.addEventListener("touchmove", moveGhost, { passive: false }); // Need passive: false to preventDefault
 
-    onDragStart?.(event as DragEvent, node);
-
+    // --- Cleanup function ---
     function cleanup() {
+      if (!isDragging) return; // Avoid cleanup if drag didn't properly start
       isDragging = false;
+
       document.removeEventListener("mousemove", moveGhost);
       document.removeEventListener("touchmove", moveGhost);
 
-      // --- Group Notification ---
       if (groupApi) {
-        groupApi.notifyDragEnd(node);
+        console.log("Draggable notifying group", groupApi.groupId, "of drag end");
+        groupApi.notifyMemberDragEnd(node);
       }
-      // --- End Group Notification ---
 
+      // Remove ghost (with optional delay for debugging)
       if (devDelay) {
-        setTimeout(() => {
-          ghost?.remove(); // Add null check for safety
-          node.style.pointerEvents = initialPointerEvents || ""; // Restore original or remove
-        }, devDelay);
+        setTimeout(() => ghost?.remove(), devDelay);
       } else {
-        ghost?.remove(); // Add null check for safety
-        node.style.pointerEvents = initialPointerEvents || ""; // Restore original or remove
+        ghost?.remove();
       }
+
+      // Restore original node's pointer events
+      node.style.pointerEvents = initialPointerEvents || ""; // Restore original or remove
+
+      // Remove end listeners (added below) - crucial to prevent leaks
+      document.removeEventListener("mouseup", handleEnd);
+      document.removeEventListener("touchend", handleEnd);
     }
 
+    // --- End event handler ---
     function handleEnd(event: MouseEvent | TouchEvent) {
-      if (!isDragging) return; // Prevent cleanup if drag never really started
+      if (!isDragging) return;
 
       const isTouchEnd = event.type.includes("touch");
-      // Use changedTouches for touchend
       const clientX = isTouchEnd
         ? (event as TouchEvent).changedTouches[0].clientX
         : (event as MouseEvent).clientX;
@@ -382,7 +412,7 @@ export function draggable<T>(
         ? (event as TouchEvent).changedTouches[0].clientY
         : (event as MouseEvent).clientY;
 
-      // Recalculate drop target one last time for accuracy at drop point
+      // Final check for drop target at the exact drop point
       const finalDropInfo = getValidDroppableUnderMouse(
         { clientX, clientY } as DragEvent,
         draggableType ?? "any"
@@ -390,52 +420,57 @@ export function draggable<T>(
       const finalDropTarget = finalDropInfo?.dropTarget;
       const finalDropValid = finalDropInfo?.isValid;
 
+      // Call user's native drag end callback
       onDragEnd?.(event as DragEvent, node);
 
+      // Dispatch custom drop event if dropped on a valid target
       if (finalDropTarget && finalDropValid) {
-        const custEvt = new DropEvent({
-          draggableType: draggableType,
+        const dropEvent = new DropEvent({
+          draggableType: draggableType ?? "unknown",
           node,
-          ghost, // Ghost might be needed for drop animation/info
+          ghost, // Pass ghost in case drop handler needs info from it
           data,
           clientX,
-          clientY
+          clientY,
         });
-        finalDropTarget.dispatchEvent(custEvt);
+        finalDropTarget.dispatchEvent(dropEvent);
       } else {
-        // Handle failed drop (e.g., animate ghost back) - TODO
+        // TODO Handle failed drop (e.g., trigger ghost return animation)
+        console.log("Drop failed or occurred outside a valid target.");
       }
 
-      cleanup(); // Perform cleanup regardless of drop success
-
-      // Remove event listeners added in handleStart
-      document.removeEventListener("mouseup", handleEnd);
-      document.removeEventListener("touchend", handleEnd);
+      // Perform cleanup regardless of drop success
+      cleanup();
     }
 
-    // Use { once: true } for cleanup listeners
-    document.addEventListener("mouseup", handleEnd, { once: true });
-    document.addEventListener("touchend", handleEnd, { once: true });
-  }
+    // Add end listeners to the document (capture phase might be better but usually not needed)
+    // Using once: true might seem appealing but cleanup needs to remove these specifically
+    // in case the drag ends unexpectedly (e.g., focus loss). The cleanup function handles removal.
+    document.addEventListener("mouseup", handleEnd);
+    document.addEventListener("touchend", handleEnd);
+  } // End handleStart
 
+  // Attach start listeners to the node
   node.addEventListener("mousedown", handleStart);
   node.addEventListener("touchstart", handleStart, { passive: false }); // passive: false needed for preventDefault
 
   return {
     update(newProps: DraggableParams<any>) {
+      // Update configurable properties
       axis = newProps.axis ?? axis;
       data = newProps.data ?? data;
       draggableType = newProps.type;
-      // Note: Cannot update group association dynamically this way easily
+      onDragStart = newProps.onDragStart;
+      onDragEnd = newProps.onDragEnd;
+      onGhostRender = newProps.onGhostRender;
+      devDelay = newProps.devDelay;
+      // Note: Group association is determined at drag start, cannot be updated dynamically this way.
     },
     destroy() {
+      // Remove event listeners
       node.removeEventListener("mousedown", handleStart);
       node.removeEventListener("touchstart", handleStart);
-      // --- Group Unregistration ---
-      if (groupApi) {
-        groupApi.unregister(node);
-      }
-      // --- End Group Unregistration ---
+      // No group unregister needed as API is looked up dynamically
       node.classList.remove("dnd-draggable");
       node.removeAttribute("draggable");
     },
@@ -447,69 +482,55 @@ export function draggable<T>(
 export function droppable(
   node: DroppableElement,
   {
-    accepts,
+    accepts = ["*"], // Default to accepting anything
     onDrop,
-    onGhostPosition, // Keep these for potential droppable-controlled ghost behavior
-    onGhostRender,
-  }: DroppableParams = { accepts: ["*"] }
+    onGhostPosition, // Keep for droppable-controlled ghost positioning
+  }: DroppableParams
 ) {
   node.setAttribute(DROPPABLE_ACCEPTS_ATTR, accepts.join(","));
-
-  node._dnd_onGhostPosition = onGhostPosition;
-  if (onGhostPosition) node.setAttribute(CONTROLS_DRAGGABLE_ATTR, "true");
-
-  node.setAttribute("droppable", "true");
   node.classList.add("dnd-droppable");
 
+  // Store the callback directly on the node (prefixed to avoid collisions)
+  node._dnd_onGhostPosition = onGhostPosition;
+  if (onGhostPosition) {
+    // Add attribute to signal that this droppable controls ghost position
+    node.setAttribute(CONTROLS_DRAGGABLE_ATTR, "true");
+  } else {
+    node.removeAttribute(CONTROLS_DRAGGABLE_ATTR);
+  }
+
+  // --- Custom Event Handlers ---
   function handleDragEnter(event: DragEnterEvent) {
-    // event.preventDefault(); // Not needed for custom events unless bubbling is an issue
-
     const { draggableType: type } = event.detail;
-
-    // Apply state-styling
-    if (matchesDndType(type, accepts)) {
-      node.classList.add("valid-drop");
-    } else {
-      node.classList.add("invalid-drop");
-    }
+    // Apply visual feedback based on type match
+    node.classList.toggle("valid-drop", matchesDndType(type, accepts));
+    node.classList.toggle("invalid-drop", !matchesDndType(type, accepts));
   }
 
   function handleDragOver(event: DragOverEvent) {
-    // event.preventDefault(); // Not needed for custom events
-
+    // Usually needed to continuously signal drop acceptance in native D&D,
+    // but less critical with custom events. Still useful for styling.
     const { draggableType: type } = event.detail;
-
-    // Apply state-styling (redundant with enter, but safe)
-    if (matchesDndType(type, accepts)) {
-      node.classList.add("valid-drop");
-    } else {
-      node.classList.add("invalid-drop");
-    }
+    node.classList.toggle("valid-drop", matchesDndType(type, accepts));
+    node.classList.toggle("invalid-drop", !matchesDndType(type, accepts));
   }
 
   function handleDragLeave(event: DragLeaveEvent) {
-    // event.preventDefault(); // Not needed for custom events
-
-    // Reset state-styling
-    node.classList.remove("valid-drop");
-    node.classList.remove("invalid-drop");
+    // Remove visual feedback when dragging leaves
+    node.classList.remove("valid-drop", "invalid-drop");
   }
 
   function handleDrop(event: DropEvent) {
-    // event.preventDefault(); // Not needed for custom events
-
-    // Reset state-styling
-    node.classList.remove("valid-drop");
-    node.classList.remove("invalid-drop");
-
+    // Remove visual feedback on drop
+    node.classList.remove("valid-drop", "invalid-drop");
     const { draggableType: type } = event.detail;
-
-    // Check if the drop is valid
+    // Check type match one last time and call user's onDrop callback
     if (matchesDndType(type, accepts)) {
       onDrop?.(event);
     }
   }
 
+  // Add listeners for custom DND events
   node.addEventListener(dragenterEventName, handleDragEnter as EventListener);
   node.addEventListener(dragoverEventName, handleDragOver as EventListener);
   node.addEventListener(dragleaveEventName, handleDragLeave as EventListener);
@@ -519,11 +540,10 @@ export function droppable(
     update(newParams: DroppableParams) {
       accepts = newParams.accepts ?? accepts;
       onDrop = newParams.onDrop ?? onDrop;
-      onGhostPosition = newParams.onGhostPosition ?? onGhostPosition;
-      onGhostRender = newParams.onGhostRender ?? onGhostRender;
+      onGhostPosition = newParams.onGhostPosition; // Update stored callback
 
       node.setAttribute(DROPPABLE_ACCEPTS_ATTR, accepts.join(","));
-      node._dnd_onGhostPosition = undefined;
+      node._dnd_onGhostPosition = onGhostPosition;
       if (onGhostPosition) {
         node.setAttribute(CONTROLS_DRAGGABLE_ATTR, "true");
       } else {
@@ -531,26 +551,16 @@ export function droppable(
       }
     },
     destroy() {
-      node.removeEventListener(
-        dragenterEventName,
-        handleDragEnter as EventListener
-      );
-      node.removeEventListener(
-        dragoverEventName,
-        handleDragOver as EventListener
-      );
-      node.removeEventListener(
-        dragleaveEventName,
-        handleDragLeave as EventListener
-      );
+      // Remove listeners and cleanup attributes/properties
+      node.removeEventListener(dragenterEventName, handleDragEnter as EventListener);
+      node.removeEventListener(dragoverEventName, handleDragOver as EventListener);
+      node.removeEventListener(dragleaveEventName, handleDragLeave as EventListener);
       node.removeEventListener(dropEventName, handleDrop as EventListener);
-      node.classList.remove("dnd-droppable");
-      node.classList.remove("valid-drop");
-      node.classList.remove("invalid-drop");
-      node.removeAttribute("droppable");
+      node.classList.remove("dnd-droppable", "valid-drop", "invalid-drop");
+      node.removeAttribute("droppable"); // Remove if previously set
       node.removeAttribute(DROPPABLE_ACCEPTS_ATTR);
       node.removeAttribute(CONTROLS_DRAGGABLE_ATTR);
-      delete node._dnd_onGhostPosition;
+      delete node._dnd_onGhostPosition; // Clean up property
     },
   };
 }
@@ -561,24 +571,17 @@ export function matchesDndType(
   type: string | undefined,
   pattern: string | string[]
 ): boolean {
-  if (!type) return false; // Cannot match an undefined type
+  if (!type) return false;
 
-  let patterns: string[];
-  if (Array.isArray(pattern)) patterns = pattern;
-  else patterns = pattern.split(",").map((p) => p.trim()); // Trim whitespace
+  const patterns = Array.isArray(pattern)
+    ? pattern
+    : pattern.split(",").map((p) => p.trim());
 
   for (const p of patterns) {
-    if (p === type) return true; // Exact match
-    if (p === "*") return true; // Wildcard match all
-
-    // Basic wildcard matching (e.g., "group/*" matches "group/item")
-    if (p.endsWith("/*")) {
-      const basePattern = p.slice(0, -2);
-      if (type.startsWith(basePattern + "/")) {
-        return true;
-      }
+    if (p === type || p === "*") return true;
+    if (p.endsWith("/*") && type.startsWith(p.slice(0, -2) + "/")) {
+      return true;
     }
-    // Add more complex pattern matching if needed (like **)
   }
   return false;
 }
@@ -587,20 +590,21 @@ function copyComputedSize(source: HTMLElement, target: HTMLElement) {
   const computedStyle = window.getComputedStyle(source);
   target.style.width = computedStyle.width;
   target.style.height = computedStyle.height;
-  // Optionally copy box-sizing to ensure width/height are interpreted correctly
   target.style.boxSizing = computedStyle.boxSizing;
+  // Add margin copy? Might be needed for accurate positioning in some layouts
+  // target.style.margin = computedStyle.margin;
+  // Position absolute is crucial for ghost positioning
+  target.style.position = "absolute";
+  target.style.zIndex = "9999"; // Ensure ghost is on top
+  target.style.pointerEvents = "none"; // Ghost should not interfere with elementFromPoint
 }
 
-// copyComputedStyle is generally not recommended for ghosts as it's heavy
-// and can copy unwanted styles. Specific styles are usually better.
-// function copyComputedStyle(source: HTMLElement, target: HTMLElement) { ... }
-
 function getValidDroppableUnderMouse(
-  event: DragEvent,
+  event: { clientX: number; clientY: number }, // Simplified interface
   type: string
-): { isValid: boolean; dropTarget: DroppableElement | null } {
-  // Temporarily hide the ghost to check what's underneath
-  const ghost = document.querySelector(".dnd-ghost") as HTMLElement | null; // Assuming only one ghost
+): { isValid: boolean; dropTarget: DroppableElement | null } | null {
+  // Temporarily hide the ghost
+  const ghost = document.querySelector(".dnd-ghost") as HTMLElement | null;
   let originalDisplay = "";
   if (ghost) {
     originalDisplay = ghost.style.display;
@@ -617,23 +621,24 @@ function getValidDroppableUnderMouse(
     ghost.style.display = originalDisplay;
   }
 
-  if (!elemUnderCursor) return { isValid: false, dropTarget: null };
+  if (!elemUnderCursor) return null;
 
-  const dropZone = elemUnderCursor.closest<HTMLElement>(
+  // Find the nearest droppable ancestor
+  const dropZone = elemUnderCursor.closest<DroppableElement>(
     `[${DROPPABLE_ACCEPTS_ATTR}]`
   );
-  if (!dropZone) {
-    return { isValid: false, dropTarget: null };
-  }
 
-  // Check if dropzone accepts this type
+  if (!dropZone) return null;
+
+  // Check if the found dropzone accepts the draggable type
   const accepts = dropZone.dataset.droppableAccepts || "";
-  if (matchesDndType(type, accepts)) {
-    return { isValid: true, dropTarget: dropZone };
-  } else {
-    return { isValid: false, dropTarget: dropZone }; // Return dropzone even if invalid type
-  }
+  const isValid = matchesDndType(type, accepts);
+
+  return { isValid, dropTarget: dropZone };
 }
+
+// Context key generation function (No longer used for runtime lookup)
+// const getGroupContextKey = (id: number) => `drag-group-${id}`;
 
 //#endregion
 
@@ -647,18 +652,16 @@ const dragleaveEventName = "dnd-dragleave";
 const dropEventName = "dnd-drop";
 
 // --- Core Detail Interface ---
-// This defines the common structure for the event's detail payload
 interface DndEventDetail<T = any> {
-  draggableType: string; // The original draggable type identifier
-  data?: T; // The data payload associated with the draggable
-  node: HTMLElement; // The original draggable node
-  ghost: HTMLElement; // The cloned ghost element being dragged
-  clientX: number; // mouse x coordinate
-  clientY: number; // mouse y coordinate
+  draggableType: string;
+  data?: T;
+  node: HTMLElement; // Original draggable node
+  ghost: HTMLElement; // Ghost element
+  clientX: number;
+  clientY: number;
 }
 
 // --- Base Custom Event Class ---
-// All specific DND events will extend this base class
 export class DndDragEvent<
   TData = any,
   TDetail extends DndEventDetail<TData> = DndEventDetail<TData>,
@@ -666,126 +669,136 @@ export class DndDragEvent<
   constructor(
     eventName: string,
     detail: TDetail,
-    eventInitDict?: CustomEventInit<TDetail>,
+    eventInitDict?: CustomEventInit<TDetail>
   ) {
-    // Default bubbles and composed to true if not provided
     super(eventName, {
       detail,
-      bubbles: true,
-      composed: true,
-      ...eventInitDict, // Allow overriding defaults if necessary
+      bubbles: true, // Default to bubble
+      composed: true, // Default to cross shadow DOM boundaries
+      ...eventInitDict,
     });
   }
 }
 
-// --- Specific Event Classes Extending the Base ---
-
-export class DragStartEvent<T = any> extends DndDragEvent<
-  T,
-  DndEventDetail<T>
-> {
+// --- Specific Event Classes ---
+export class DragStartEvent<T = any> extends DndDragEvent<T> {
   constructor(detail: DndEventDetail<T>) {
     super(dragstartEventName, detail);
   }
 }
-
-export class DragEnterEvent<T = any> extends DndDragEvent<
-  T,
-  DndEventDetail<T>
-> {
+export class DragEnterEvent<T = any> extends DndDragEvent<T> {
   constructor(detail: DndEventDetail<T>) {
     super(dragenterEventName, detail);
   }
 }
-
-export class DragOverEvent<T = any> extends DndDragEvent<
-  T,
-  DndEventDetail<T>
-> {
+export class DragOverEvent<T = any> extends DndDragEvent<T> {
   constructor(detail: DndEventDetail<T>) {
     super(dragoverEventName, detail);
   }
 }
-
-export class DragLeaveEvent<T = any> extends DndDragEvent<
-  T,
-  DndEventDetail<T>
-> {
+export class DragLeaveEvent<T = any> extends DndDragEvent<T> {
   constructor(detail: DndEventDetail<T>) {
     super(dragleaveEventName, detail);
   }
 }
-
-// DropEvent might have slightly different detail in the future,
-// but for now, it uses the same base detail structure.
-// If it diverges, you can create a specific DropEventDetail interface
-// extending DndEventDetail and update the generic parameters here.
-export class DropEvent<T = any> extends DndDragEvent<T, DndEventDetail<T>> {
+export class DropEvent<T = any> extends DndDragEvent<T> {
   constructor(detail: DndEventDetail<T>) {
     super(dropEventName, detail);
   }
 }
 
-// --- Supporting Interfaces and Types (Mostly Unchanged) ---
+// --- Supporting Interfaces and Types ---
 
 interface DroppableElement extends HTMLElement {
-  _dnd_onGhostPosition?: GhostPositionFunction; // Use a unique prefix
+  // Callback for droppable-controlled ghost positioning
+  _dnd_onGhostPosition?: GhostPositionFunction;
 }
 
-// Type for options passed to the draggable action
-type DragOptions = {
-  axis?: "both" | "x" | "y";
-};
+type DragAxis = "both" | "x" | "y";
 
-// Data passed to callback functions like onGhostRender/Position
-// Renamed DragEventDetail to DndEventDetail above
+// Data passed to positioning/rendering callbacks
 export type DragPositionData = {
   node: HTMLElement;
   ghost: HTMLElement;
+  axis: DragAxis;
   clientX: number;
   clientY: number;
-  newX: number | null;
-  newY: number | null;
+  newX: number | null; // Calculated target X
+  newY: number | null; // Calculated target Y
   startX: number;
   startY: number;
   offsetX: number;
   offsetY: number;
-  overElement: HTMLElement | null;
-  groupContext: GroupContext | null; // Added group context
-} & DragOptions;
-
-
-// Combined parameters for the draggable action
-// Note: onDragStart/End still use native DragEvent. You might want to
-// change these to use your custom events if appropriate for your logic.
-type DraggableParams<T> = {
-  type: string; // Identifier for the type of draggable item
-  data?: T; // Optional data payload associated with the draggable
-  onDragStart?: (event: DragEvent, node: HTMLElement) => void; // Native event
-  onDragEnd?: (event: DragEvent, node: HTMLElement) => void; // Native event
-  onGhostRender?: GhostRenderFunction; // Callback to customize ghost appearance
-  onGhostPosition?: GhostPositionFunction; // Callback to customize ghost position
-  devDelay?: number; // Optional delay for removing ghost (debugging)
-} & DragOptions;
-
-// Parameters for the droppable action
-// onDrop now correctly uses the custom DropEvent type
-type DroppableParams = {
-  accepts: string[]; // Array of types this droppable accepts
-  onDrop?: (event: DropEvent) => void; // Callback when a valid item is dropped
-  onGhostRender?: GhostRenderFunction;
-  onGhostPosition?: GhostPositionFunction;
+  overElement: DroppableElement | null; // The droppable currently under the ghost
+  groupApi?: GroupApi; // API of the group the draggable belongs to (if any)
 };
 
-// Signature for ghost rendering callback
-// Still uses native DragEvent, adjust if needed
-export type GhostRenderFunction = (
-  ghost: HTMLElement, // The ghost element
-  posData: DragPositionData, // Additional drag state data
-) => void;
+// Signature for the consolidated ghost rendering/positioning callback
+export type GhostRenderFunction = (detail: {
+  ghost: HTMLElement; // The ghost element
+  node: HTMLElement; // The original draggable node
+  posData: DragPositionData; // Current drag state and calculated position
+  setPosition: (x: number | null, y: number | null) => void; // Function to apply position
+}) => void;
 
-// Signature for ghost positioning callback
-export type GhostPositionFunction = (args: DragPositionData) => { x: number | null; y: number | null }; // Return new coordinates
+// Signature for droppable-controlled ghost positioning callback
+export type GhostPositionFunction = (
+  args: DragPositionData
+) => { x: number | null; y: number | null }; // Return new coordinates
+
+// Parameters for the draggable action
+type DraggableParams<T> = {
+  type: string; // Type identifier
+  data?: T; // Associated data payload
+  onDragStart?: (event: DragEvent, node: HTMLElement) => void; // Native event hook
+  onDragEnd?: (event: DragEvent, node: HTMLElement) => void; // Native event hook
+  onGhostRender?: GhostRenderFunction; // Consolidated ghost callback
+  axis?: DragAxis;
+  devDelay?: number; // Debugging delay for ghost removal
+};
+
+// Parameters for the droppable action
+type DroppableParams = {
+  accepts?: string[]; // Types this droppable accepts
+  onDrop?: (event: DropEvent) => void; // Callback on successful drop
+  onGhostPosition?: GhostPositionFunction; // Callback for droppable-controlled positioning
+};
+
+// --- Drag-Group API ---
+
+// API provided by the dragGroup action via the module map
+// Renamed from GroupContextApi back to GroupApi for simplicity
+export interface GroupApi {
+  groupNode: HTMLElement;
+  groupId: number;
+
+  // Methods called by draggable
+  notifyMemberDragStart: (draggingNode: HTMLElement) => void;
+  notifyMemberDragEnd: (draggingNode: HTMLElement) => void;
+
+  // Internal storage for user overrides
+  _internal_onMemberDragStart?: DragGroupParams["onMemberDragStart"];
+  _internal_onMemberDragEnd?: DragGroupParams["onMemberDragEnd"];
+}
+
+// Params for the dragGroup action, containing optional overrides
+interface DragGroupParams {
+  onMemberDragStart?: (
+    detail: {
+      draggingNode: HTMLElement;
+      groupNode: HTMLElement;
+      groupMembers: HTMLElement[];
+    },
+    defaultFn: () => void
+  ) => void;
+  onMemberDragEnd?: (
+    detail: {
+      draggingNode: HTMLElement;
+      groupNode: HTMLElement;
+      groupMembers: HTMLElement[];
+    },
+    defaultFn: () => void
+  ) => void;
+}
 
 //#endregion
-

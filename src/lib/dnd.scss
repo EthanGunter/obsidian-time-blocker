@@ -20,3 +20,10 @@
 .dnd-droppable.invalid-drop {
   outline: 1px solid #ff000055;
 }
+
+/* DEBUGGING STYLES */
+// [style*="pointer-events: none"] {
+//   /* Your highlighting styles here */
+//   background-color: yellow; /* Example: highlight with yellow background */
+//   border: 1px solid red; /* Example: add a red border */
+// }
