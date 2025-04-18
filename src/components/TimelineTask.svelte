@@ -14,7 +14,7 @@
 		top?: string;
 		left?: string;
 		width?: string;
-		height: string;
+		height?: string;
 	} = {
 		height: "2rem",
 	};
