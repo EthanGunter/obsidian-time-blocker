@@ -14,6 +14,9 @@
 		droppable,
 		type DragPositionData,
 		type DropEvent,
+		type GhostRenderArgs,
+		type GhostRenderFunction,
+		type IntermediateGhostRenderFunction,
 	} from "src/lib/dnd";
 	import { taskStore } from "src/stores/tasks";
 
@@ -24,7 +27,8 @@
 
 	// These constants should match the ones in dnd.ts
 	const BLOCK_SPAN: number = 60; // minutes
-	const SNAP_INCREMENT: number = 15; // minutes
+	const SNAP_INCREMENT: number = 30; // minutes
+	let timelineGrid: HTMLElement;
 
 	let filepath = "";
 	let plugin: TimeBlockPlugin;
@@ -44,6 +48,134 @@
 
 	const BLOCK_HEIGHT = 2; //rem
 	const TIME_COLUMN_WIDTH = "3rem";
+
+	// TODO extract HTML utilities
+	function currentEmToPx(unit: string, node?: HTMLElement) {
+		const em = parseFloat(unit) || 0;
+		const rootElement = unit.includes("rem")
+			? document.documentElement
+			: node || document.documentElement;
+		const fontSize = parseFloat(getComputedStyle(rootElement).fontSize);
+		return em * fontSize;
+	}
+	function getInnerRect(node: HTMLElement): DOMRect {
+		const rect = node.getBoundingClientRect();
+		const styles = getComputedStyle(node);
+
+		// Parse paddings and borders
+		const paddingTop = parseFloat(styles.paddingTop);
+		const paddingRight = parseFloat(styles.paddingRight);
+		const paddingBottom = parseFloat(styles.paddingBottom);
+		const paddingLeft = parseFloat(styles.paddingLeft);
+
+		const borderTop = parseFloat(styles.borderTopWidth);
+		const borderRight = parseFloat(styles.borderRightWidth);
+		const borderBottom = parseFloat(styles.borderBottomWidth);
+		const borderLeft = parseFloat(styles.borderLeftWidth);
+
+		const innerLeft = rect.left + borderLeft + paddingLeft;
+		const innerTop = rect.top + borderTop + paddingTop;
+		const innerRight = rect.right - borderRight - paddingRight;
+		const innerBottom = rect.bottom - borderBottom - paddingBottom;
+		const innerWidth = innerRight - innerLeft;
+		const innerHeight = innerBottom - innerTop;
+
+		return {
+			x: innerLeft,
+			y: innerTop,
+			left: innerLeft,
+			top: innerTop,
+			right: innerRight,
+			bottom: innerBottom,
+			width: innerWidth,
+			height: innerHeight,
+			toJSON() {
+				return {
+					x: innerLeft,
+					y: innerTop,
+					left: innerLeft,
+					top: innerTop,
+					right: innerRight,
+					bottom: innerBottom,
+					width: innerWidth,
+					height: innerHeight,
+				};
+			},
+		} as DOMRect;
+	}
+
+	function calculateSnappedTime(clientY: number): {
+		time: moment.Moment;
+		snappedY: number; // Renamed from newY, now represents pixel coordinate
+	} {
+		// Ensure timelineGrid is available
+		if (!timelineGrid) {
+			console.error("timelineGrid element not bound yet.");
+			// Return a default or throw an error, depending on desired behavior
+			// For now, let's return the start time and top position
+			return { time: timeRange.start.clone(), snappedY: 0 };
+		}
+
+		const gridRect = timelineGrid.getBoundingClientRect();
+
+		// Calculate vertical position relative to the grid top (0.0 to 1.0)
+		// Clamp clientY to be within the grid bounds before calculating percentage
+		const clampedClientY = Math.max(
+			gridRect.top,
+			Math.min(clientY, gridRect.bottom),
+		);
+		const percentFromTop =
+			gridRect.height > 0
+				? (clampedClientY - gridRect.top) / gridRect.height
+				: 0;
+
+		// Calculate total minutes represented by the grid's duration
+		const totalGridMinutes = timeRange.end.diff(timeRange.start, "minutes");
+
+		// Calculate the minute offset from the grid start based on relative Y
+		const minutesFromStart = percentFromTop * totalGridMinutes;
+
+		// Snap the minutes to the nearest increment
+		const snappedMinutes =
+			Math.round(minutesFromStart / SNAP_INCREMENT) * SNAP_INCREMENT;
+
+		// Calculate the final snapped time
+		let snappedTime = timeRange.start
+			.clone()
+			.add(snappedMinutes, "minutes");
+
+		// --- Boundary Checks for Time ---
+		// Ensure snapped time is not before the start
+		if (snappedTime.isBefore(timeRange.start)) {
+			snappedTime = timeRange.start.clone();
+		}
+		// Ensure snapped time is not after the end
+		if (snappedTime.isAfter(timeRange.end)) {
+			snappedTime = timeRange.end.clone();
+		}
+		// --- End Boundary Checks ---
+
+		// --- Calculate Snapped Pixel Y Coordinate ---
+		// Recalculate the actual minutes from start for the *final* snappedTime
+		const finalSnappedMinutesFromStart = snappedTime.diff(
+			timeRange.start,
+			"minutes",
+		);
+
+		// Calculate the proportional vertical position within the grid (0.0 to 1.0) based on the *snapped* time
+		const snappedProportion =
+			totalGridMinutes > 0
+				? finalSnappedMinutesFromStart / totalGridMinutes
+				: 0;
+
+		// Calculate the snapped Y coordinate relative to the viewport
+		// This is grid top + (proportion * grid height)
+		const snappedY = gridRect.top + snappedProportion * gridRect.height;
+		// --- End Calculate Snapped Pixel Y Coordinate ---
+
+		// Return both the snapped time and the calculated pixel Y coordinate
+		return { time: snappedTime, snappedY };
+	}
 
 	function calcPositionParams(
 		startTime: moment.Moment,
@@ -142,11 +274,7 @@
 			if (direction == "start") {
 				scheduleTask(data, slot.time, data.metadata.scheduled?.end);
 			} else if (direction == "end") {
-				scheduleTask(
-					data,
-					data.metadata.scheduled?.start,
-					slot.time.clone().add(BLOCK_SPAN, "minutes"),
-				);
+				scheduleTask(data, data.metadata.scheduled?.start, slot.time);
 			} else {
 				throw new Error(`Unimplemented resize handler: ${direction}`);
 			}
@@ -174,28 +302,88 @@
 		}
 	}
 
-	function handleGhostPosition(
-		{ overElement: currTarg }: DragPositionData,
-		slot: {
-			time: moment.Moment;
-			isHourMark: boolean;
-			index: number;
-		},
-	) {
-		if (!currTarg) return { x: null, y: null };
+	function handleGhostRender({
+		ghost,
+		posData,
+		currentDroppableTarget: currTarg,
+		setPosition,
+	}: GhostRenderArgs<TaskData>) {
+		if (!currTarg) return;
 
-		const y = currTarg.getBoundingClientRect().top;
-		const x =
-			currTarg.querySelector(".timeline-block")?.getBoundingClientRect()
-				.left ?? 0;
+		const { clientY } = posData;
+		const { snappedY, time } = calculateSnappedTime(clientY);
 
-		return { x, y };
+		let x: number = 0,
+			y: number = 0;
+
+		y = snappedY;
+		// TODO This looks good, but drops are still registered by the cursor position, making the drop result unexpected
+		y += posData.offsetY; // When simply moving the task, keep its position relative to the cursor
+
+		const timelineBlock = currTarg.querySelector(
+			".timeline-block",
+		) as HTMLElement;
+		if (timelineBlock) {
+			const innerRect = getInnerRect(timelineBlock);
+			x = innerRect.x;
+			ghost.style.width = `${innerRect.width}px`;
+		} else {
+			console.error("Timeline block not found in the current target.");
+			return;
+		}
+
+		setPosition({ x, y });
 	}
+
+	const taskResizeRenderer: IntermediateGhostRenderFunction<TaskData> = ({
+		draggableType,
+		data,
+		node,
+		ghost,
+		posData,
+		setPosition,
+	}) => {
+		if (!data?.metadata.scheduled) {
+			console.error(
+				"Task not scheduled yet. Cannot resize or move... How did you do that?",
+			);
+			return;
+		}
+		const { clientY } = posData;
+		const { snappedY, time } = calculateSnappedTime(clientY);
+
+		// TODO calculate x position based on timeline-grid, not the individual block...
+
+		// Resize task
+		const nodeRect = node.getBoundingClientRect();
+		const direction = draggableType.split("resize/")[1];
+		if (direction == "start") {
+			// Set the y position and the new height so that the bottom of the element stays in the same location
+			const originalEndY = calculateSnappedTime(
+				data.metadata.scheduled.end,
+			).snappedY;
+			const newHeight = originalEndY - snappedY;
+			ghost.style.height = `${newHeight}px`;
+			// setPosition(x, snappedY);
+		} else if (direction == "end") {
+			// Simply set the new height to match the snapped time
+			// Calculate the new height based on the snapped Y position
+			const newHeight = snappedY - parseInt(node.style.top);
+			ghost.style.height = `${newHeight}px`;
+		}
+		setPosition({ x: 0, y: nodeRect.top });
+
+		return false; // Prevent further processing of the ghost render
+	};
 </script>
 
 <div class="timeline">
 	<h3>Schedule</h3>
-	<div class="timeline-grid" style="--time-text-width: {TIME_COLUMN_WIDTH}">
+	<div
+		class="timeline-grid"
+		bind:this={timelineGrid}
+		style="--time-text-width: {TIME_COLUMN_WIDTH}"
+	>
 		{#each generateTimeSlots() as slot}
 			<div
 				use:droppable={{
@@ -203,9 +391,7 @@
 					onDrop: (e) => {
 						handleTaskDrop(e, slot);
 					},
-					onGhostPosition: (args) => {
-						return handleGhostPosition(args, slot);
-					},
+					ghostRenderOverride: handleGhostRender,
 				}}
 				class="timeline-slot"
 				data-context={JSON.stringify(slot.time)}
@@ -228,6 +414,7 @@
 							task.metadata.scheduled.start,
 							task.metadata.scheduled.end,
 						)}
+						resizeRenderer={taskResizeRenderer}
 					/>
 				{/if}
 			{/each}
@@ -269,8 +456,8 @@
 		box-sizing: border-box;
 		border-top: 1px solid var(--background-modifier-border);
 		border-bottom: 1px solid var(--background-modifier-border);
-		border-inline-end: 2px solid var(--background-modifier-border);
-		border-inline-start: 2px solid var(--background-modifier-border);
+		border-right: 2px solid var(--background-modifier-border);
+		border-left: 2px solid var(--background-modifier-border);
 		height: 2rem;
 	}
 </style>

@@ -1,9 +1,14 @@
 <script lang="ts">
-	import { draggable, dragGroup } from "src/lib/dnd";
+	import {
+		draggable,
+		dragGroup,
+		type GhostRenderFunction,
+	} from "src/lib/dnd";
 	import { createEventDispatcher } from "svelte";
 	import { moment } from "obsidian";
 
 	export let task: TaskData;
+	export let resizeRenderer: GhostRenderFunction;
 
 	export let positionStyle: {
 		top?: string;
@@ -30,7 +35,11 @@
 >
 	<span
 		class="resize-handle top"
-		use:draggable={{ type: "task/resize/start", data: task }}
+		use:draggable={{
+			type: "task/resize/start",
+			data: task,
+			ghostRenderOverride: resizeRenderer,
+		}}
 	/>
 	<div class="task-content">
 		{task.content} - {task.metadata.scheduled
@@ -39,7 +48,11 @@
 	</div>
 	<span
 		class="resize-handle bottom"
-		use:draggable={{ type: "task/resize/end", data: task }}
+		use:draggable={{
+			type: "task/resize/end",
+			data: task,
+			ghostRenderOverride: resizeRenderer,
+		}}
 	/>
 </div>
 
