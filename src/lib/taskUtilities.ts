@@ -98,7 +98,10 @@ export async function updateTaskInFile(filePath: string, originalRaw: string, up
     if (file instanceof TFile) {
         try {
             const content = await get(pluginStore).app.vault.read(file);
+
             const updatedContent = content.replace(originalRaw, updatedTask);
+
+
 
             await get(pluginStore).app.vault.modify(file, updatedContent);
             return true;

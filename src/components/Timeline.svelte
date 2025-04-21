@@ -111,6 +111,8 @@
 			...task,
 			metadata: { ...task.metadata, scheduled: { start, end } },
 		};
+		console.log("Updating task:", updatedTask);
+
 		const dailyFormat = plugin.getPeriodSetting("daily").format;
 		const filepath = moment().format(dailyFormat) + ".md";
 		await updateTaskInFile(
@@ -121,9 +123,9 @@
 	}
 
 	function handleTaskDrop(e: DropEvent) {
-		const { draggableType, data, clientY } = e.detail;
-		const dropTime = posToTime(clientY);
+		const { draggableType, data, ghost, clientY } = e.detail;
 		if (draggableType.includes("resize")) {
+			const dropTime = posToTime(clientY);
 			const direction = draggableType.split("resize/")[1];
 			if (direction == "start") {
 				scheduleTask(data, dropTime, data.metadata.scheduled?.end);
@@ -131,6 +133,7 @@
 				scheduleTask(data, data.metadata.scheduled?.start, dropTime);
 			}
 		} else {
+			const dropTime = posToTime(ghost.getBoundingClientRect().top);
 			if (data.metadata.scheduled) {
 				const duration = data.metadata.scheduled.end.diff(
 					data.metadata.scheduled.start,
@@ -152,17 +155,16 @@
 		posData,
 		setPosition,
 	}: GhostRenderArgs<TaskData>) {
-		const gridRect = timelineGrid?.getBoundingClientRect();
-		if (!gridRect) return;
+		const blockRect = getBlockRect();
+		if (!blockRect) return;
 		if (draggableType.includes("resize")) return; // Let draggable override handle resize
 
-		const x = gridRect.left;
-		const width = gridRect.width;
-		const snappedTime = posToTime(posData.clientY);
+		const x = blockRect.left;
+		const snappedTime = posToTime(posData.clientY + posData.offsetY);
 		const snappedY = timeToPos(snappedTime);
 
-		setPosition({ x, y: snappedY + posData.offsetY });
-		ghost.style.width = `${width}px`;
+		setPosition({ x, y: snappedY });
+		ghost.style.width = `${blockRect.width}px`;
 	}
 
 	const taskResizeRenderer = ({

@@ -4,8 +4,8 @@
 		dragGroup,
 		type GhostRenderFunction,
 	} from "src/lib/dnd";
-	import { createEventDispatcher } from "svelte";
 	import { moment } from "obsidian";
+	import { onMount, onDestroy } from "svelte";
 
 	export let task: TaskData;
 	export let resizeRenderer: GhostRenderFunction;

@@ -80,8 +80,8 @@ behaviorSettings: {
 ## Currently working on
 // Regularly update this section with the current objective at the top, and tasks that have been postponed in favor of an MVP status below that.
 1. Daily time-blocking functionality
-    - [ ] Visual timeline with scheduled task blocks
-    - [ ] Basic drag-to-schedule interaction
+    - [x] Visual timeline with scheduled task blocks
+    - [x] Basic drag-to-schedule interaction
     - [ ] File change synchronization
 
  Postponed for MVP:

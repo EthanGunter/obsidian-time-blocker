@@ -20,6 +20,8 @@ export function dragGroup(node: HTMLElement, params?: DragGroupParams) {
 
   let currentlyDraggingNode: HTMLElement | null = null;
   let nodeOrigPointerEvents = node.style.pointerEvents;
+
+
   const members: HTMLElement[] = [];
 
   const notifyMemberDragStart = (draggingNode: HTMLElement) => {
@@ -187,10 +189,6 @@ export function draggable<T>(
     if (groupElement && groupElement.dataset.dragGroupId) {
       const groupId = parseInt(groupElement.dataset.dragGroupId, 10);
       groupApi = groupApis.get(groupId);
-      if (groupApi) {
-        // *** Notify the group that this node started dragging ***
-        groupApi.notifyMemberDragStart(node);
-      }
     }
 
     // Create ghost element
@@ -204,6 +202,7 @@ export function draggable<T>(
     // Prevent pointer events on the original node while dragging its ghost
     // TODO this is redundant with dragGroup's behaviour, but it's necessary in the case there isn't a group to handle this draggable...
     const initialPointerEvents = node.style.pointerEvents;
+
     // Use timeout 0 to ensure this runs after other start logic potentially setting pointerEvents
     setTimeout(() => {
       node.style.pointerEvents = "none";
@@ -218,7 +217,12 @@ export function draggable<T>(
 
     document.body.appendChild(ghost); // Add ghost to the body
 
-    // Dispatch custom dnd-dragstart event
+
+    // Dispatch dnd-dragstart events
+    if (groupApi) {
+      // *** Notify the group that this node started dragging ***
+      groupApi.notifyMemberDragStart(node);
+    }
     const dragStartEvent = new DragStartEvent({
       draggableType,
       data,
@@ -376,8 +380,7 @@ export function draggable<T>(
       }
 
       // Restore original node's pointer events
-      node.style.pointerEvents = initialPointerEvents || ""; // Restore original or remove
-
+      node.style.pointerEvents = initialPointerEvents || "initial"; // Restore original or remove
       // Remove end listeners (added below) - crucial to prevent leaks
       document.removeEventListener("mouseup", handleEnd);
       document.removeEventListener("touchend", handleEnd);
@@ -587,7 +590,6 @@ function copyComputedSizeAndPosition(source: HTMLElement, target: HTMLElement) {
   // Position absolute is crucial for ghost positioning
   target.style.position = "absolute";
   target.style.zIndex = "9999"; // Ensure ghost is on top
-  target.style.pointerEvents = "none"; // Ghost should not interfere with elementFromPoint
 
   const sourceRect = source.getBoundingClientRect();
   target.style.top = sourceRect.top + "px";

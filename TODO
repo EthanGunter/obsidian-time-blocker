@@ -1,1 +1,7 @@
+- [x] If a task is drag-scheduled at the same time as itself, it becomes uninteractable
+- [x] Drop operation does not line up with the ghost position
+- [x] Drop operations on the timeline result in a task scheduled 30 minutes after the drop position (I think)
+- [x] Resize-end makes the task duration 0 minutes...
+- [x] Drag ghost does not snap correctly to the timeline
+
 - [ ] Closing the modal unpopulates the scheduled tasks in the sidebar...
