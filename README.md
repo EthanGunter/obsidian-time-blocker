@@ -16,7 +16,7 @@
 | Yearly   | December 30th 2:00 PM     | Annual planning document |
 
 - All non-daily periods are optionally enabled
-- The timing of the review period doesn't matter as much as the order they happen in, in the event of overlapping reiew periods
+- The timing of the review period doesn't matter as much as the order they happen in, in the event of overlapping review periods
 
 ## Interface Requirements
 1. **Task List Interface**
@@ -30,7 +30,7 @@
       - **✕**: Marks the task as discarded.
     - Hovering a task highlights any tasks with the same pre-metadata text in parent periods
 
-2. **Time-Blocking Canvas**
+2. **Time-Blocking Canvas ✔**
    - Vertical timeline (6:00 AM - 10:00 PM default)
    - Variable increments size with magnetic snapping
    - Drag-to-create blocks from unassigned tasks
@@ -73,19 +73,17 @@ behaviorSettings: {
 
 
 # For AI agents
-1. Variables cannot be used in svelte <style> blocks. CSS variables must be used instead with <div style="--my-var: 1"> & var(--my-var)
+1. Variables cannot be used in svelte \<style> blocks. CSS variables must be used instead with \<div style="--my-var: 1"> & var(--my-var)
 2. This plugin will be heavily used on mobile platforms as well as desktop, so design considerations should be made accordingly
-3. When creating components, prefer as minimal styling as possible. Layout only to begin with. We'll do a styling pass once all the logic & UX is established
+3. When creating components, prefer as minimal styling as possible. Layout-only to begin with. We'll do a styling pass once all the logic & UX is established
 
 ## Currently working on
 // Regularly update this section with the current objective at the top, and tasks that have been postponed in favor of an MVP status below that.
-1. Daily time-blocking functionality
-    - [x] Visual timeline with scheduled task blocks
-    - [x] Basic drag-to-schedule interaction
-    - [ ] File change synchronization
+1. UI for moving tasks between periods
+  - [ ]
 
  Postponed for MVP:
- - Touch drag and drop
+ - [x] Touch drag and drop
  - Multi-period navigation
  - Task movement between periods
  - Scheduled time conflict resolution
