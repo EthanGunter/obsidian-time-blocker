@@ -1,10 +1,11 @@
 <script lang="ts">
 	import Timeline from "./Timeline.svelte";
 	import PeriodView from "./PeriodView.svelte";
+	import PeriodsTaskList from "./PeriodsTaskList.svelte";
 </script>
 
 <div class="timeblock-container">
-	<PeriodView period="daily" />
+	<PeriodsTaskList />
 	<div class="divider" />
 	<Timeline />
 </div>

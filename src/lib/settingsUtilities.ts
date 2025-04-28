@@ -51,7 +51,7 @@ export function pluginExists(pluginId: string): boolean {
 }
 
 /** Get format and folder settings for a specific period from Periodic Notes */
-export function getPeriodicNoteSettings(period: Period)/* : NoteSettings */ {
+export function getPeriodicNoteSettings(period: Period): PlannerSetting {
     const plugin = getPluginInstance(PERIODIC_NOTES);
     const settings = plugin?.settings?.[period];
 
@@ -66,7 +66,7 @@ export function getPeriodicNoteSettings(period: Period)/* : NoteSettings */ {
 }
 
 /** Get daily note settings from Daily Notes plugin if available */
-export function getDailyNoteSettings()/* : NoteSettings */ {
+export function getDailyNoteSettings(): PlannerSetting {
     const plugin = getPluginInstance(DAILY_NOTES);
     const settings = plugin?.settings;
     let pluginName;
@@ -76,7 +76,6 @@ export function getDailyNoteSettings()/* : NoteSettings */ {
 
     return { ...settings, plugin: pluginName };
 }
-
 
 //#region Internal Helpers
 

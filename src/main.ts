@@ -72,6 +72,31 @@ export default class TimeBlockPlugin extends Plugin {
         }
     }
 
+    public getEnabledPeriods(): Period[] {
+        const enabledPeriods: Period[] = [];
+        const periodOrder: Period[] = ['daily', 'weekly', 'monthly',
+            'quarterly', 'yearly'];
+
+        for (const period of periodOrder) {
+            if (!this.settings.periodFileFormats[period].enabled) continue;
+            const setting = this.getPeriodSetting(period);
+
+            if (!setting.enabled) continue;
+
+            // For periods with plugin dependencies, verify the plugin exists
+            if (setting.plugin) {
+                if (pluginExists(setting.plugin)) {
+                    enabledPeriods.push(period);
+                }
+            } else {
+                // For periods without plugin dependencies (using our own settings)
+                enabledPeriods.push(period);
+            }
+        }
+
+        return enabledPeriods;
+    }
+
     onunload() {
         this.app.workspace.detachLeavesOfType(VIEW_TYPE_TIMEBLOCK);
     }
