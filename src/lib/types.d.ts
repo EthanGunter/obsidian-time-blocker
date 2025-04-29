@@ -19,7 +19,9 @@ declare global { // TODO maybe don't do this...
     }
     interface PlannerSetting {
         enabled: boolean;
-        format: string;
+        filepathFormat: string;
+        plugin?: string;
+        templatePath?: string;
     }
 
     type TaskStatus = "active" | "in-progress" | "completed" | "canceled";
@@ -30,7 +32,8 @@ declare global { // TODO maybe don't do this...
             scheduled?: { start: Moment; end: Moment };
             archived?: Moment;
             status: TaskStatus;
-        }
+        };
+        filepath: string;
     }
 
     type Period = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';

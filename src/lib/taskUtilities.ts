@@ -1,6 +1,7 @@
-import { moment, Notice, TFile, TFolder } from "obsidian";
+import { moment, Notice, TFile, TFolder, Vault } from "obsidian";
 import { pluginStore } from "src/stores/plugin";
 import { get } from "svelte/store";
+import { error, log } from "./logger";
 
 // Metadata patterns
 const SCHEDULE_TIME_REGEX = /@(\d{1,2}:\d{2}[ap]?m?-\d{1,2}:\d{2}[ap]?m?)/gi;
@@ -11,7 +12,7 @@ const TIME_FORMAT = "hh:mma";
 export async function getTasksFromFile(filepath: string): Promise<TaskData[]> {
     const file = get(pluginStore).app.vault.getAbstractFileByPath(filepath);
     if (!file) {
-        new Notice(`FILE NOT FOUND: ${filepath}`);
+        error([`File not found: ${filepath}`]);
         return [];
     }
 
@@ -20,11 +21,8 @@ export async function getTasksFromFile(filepath: string): Promise<TaskData[]> {
 
         const taskStrings = parseTasks(content);
 
-        return taskStrings.map(task => deserializeTask(task));
+        return taskStrings.map(task => deserializeTask(task, filepath));
     } else return [];
-}
-export function getTasksFromContent(content: string): TaskData[] {
-    return parseTasks(content).map(task => deserializeTask(task));
 }
 
 export function serializeTask(task: TaskData): string {
@@ -45,7 +43,7 @@ export function serializeTask(task: TaskData): string {
     return output;
 }
 
-export function deserializeTask(task: string): TaskData {
+export function deserializeTask(task: string, filepath: string): TaskData {
     const archivedMatch = task.match(ARCHIVE_REGEX);
     const archived = archivedMatch && {
         archived: moment(archivedMatch[1]).toISOString()
@@ -85,51 +83,195 @@ export function deserializeTask(task: string): TaskData {
             ...archived,
             ...scheduled,
             status
-        }
+        },
+        filepath
     }
 
     return data;
 }
 
-export async function updateTaskInFile(filePath: string, originalRaw: string, updatedTask: string): Promise<boolean> {
-    const file = get(pluginStore).app.vault.getAbstractFileByPath(filePath);
-    if (!file) return false;
+export async function deleteTask(task: TaskData): Promise<boolean> {
+    const file = get(pluginStore).app.vault.getAbstractFileByPath(task.filepath);
+    if (!file) {
+        error([`File not found: ${task.filepath}`]);
+        return false;
+    }
 
     if (file instanceof TFile) {
         try {
             const content = await get(pluginStore).app.vault.read(file);
-
-            const updatedContent = content.replace(originalRaw, updatedTask);
-
-
+            const updatedContent = content.split('\n')
+                .filter(line => line.trim() !== task.raw.trim())
+                .join('\n');
 
             await get(pluginStore).app.vault.modify(file, updatedContent);
             return true;
         } catch (error) {
-            console.error('Failed to update task:', error);
+            error('Failed to update task:', error);
             return false;
         }
     } else return false; // TODO elaborate failure
 }
+export async function updateTask(oldTask: TaskData, update: Partial<TaskData>): Promise<boolean> {
+    const file = get(pluginStore).app.vault.getAbstractFileByPath(oldTask.filepath);
+    if (!file) {
+        error([`File not found: ${oldTask.filepath}`]);
+        return false;
+    }
 
+    if (file instanceof TFile) {
+        try {
+            const newTask = { ...oldTask, ...update };
+            const content = await get(pluginStore).app.vault.read(file);
+
+            const updatedContent = content.replace(oldTask.raw, serializeTask(newTask));
+
+            await get(pluginStore).app.vault.modify(file, updatedContent);
+            return true;
+        } catch (error) {
+            error('Failed to update task:', error);
+            return false;
+        }
+    } else return false; // TODO elaborate failure
+}
+export async function moveTask(task: TaskData, targetFilepath: string, period: Period): Promise<boolean> {
+    if (task.filepath === targetFilepath) return true;
+    const { vault } = get(pluginStore).app;
+
+    const deletionSuccess = await deleteTask(task);
+    if (!deletionSuccess) return false;
+
+    // Remove scheduling metadata
+    const modifiedTask = {
+        ...task,
+        metadata: {
+            ...task.metadata,
+            scheduled: undefined
+        }
+    };
+    const taskString = serializeTask(modifiedTask);
+
+    const targetFile = await createFile(vault, period, targetFilepath);
+
+    // Insert at top of task section
+    if (targetFile instanceof TFile) {
+        try {
+            let content = await vault.read(targetFile);
+            const header = get(pluginStore)?.settings.taskHeaderName;
+            const headerRegex = new
+                RegExp(`^(#{1,6})\\s*${header}\\s*$`, "gmi");
+
+            if (headerRegex.test(content)) {
+                // Reset regex state after test
+                headerRegex.lastIndex = 0;
+
+                // Insert after last matched header to handle multiple sections
+                content = content.replace(headerRegex, (match, hashes) => {
+                    return `${match}\n${taskString}`;
+                });
+            } else {
+                // Insert before first YAML frontmatter if exists       
+                const yamlEnd = content.match(/^---\s*\n/);
+                if (yamlEnd) {
+                    content = content.replace(/^---\s*\n/, `$&\n# ${header}\n${taskString}\n`);
+                } else {
+                    // Insert at top but after any leading comments / empty lines
+                    content = `# ${header}\n${taskString}\n\n${content}`;
+                }
+            }
+
+            await vault.modify(targetFile, content);
+            return true;
+        } catch (err) {
+            error(['Failed to update target file:', err]);
+            return false;
+        }
+    }
+    return false;
+}
+export async function createFile(vault: Vault, period: Period, filepath: string): Promise<TFile> {
+    await this.app.vault.create("TestTemplater.md", "<% tp.file.cursor() %>");
+
+    // Get/Create target file
+    let targetFile = vault.getAbstractFileByPath(filepath);
+    if (!targetFile) {
+        // Use periodic/daily note templates if available
+        const plugin = get(pluginStore);
+        const periodSettings = plugin.getPeriodSetting(period);
+
+        let templateContent = '';
+
+        if (periodSettings?.templatePath) {
+            const templateFile = vault.getAbstractFileByPath(periodSettings.templatePath);
+            if (templateFile instanceof TFile) {
+                try {
+                    templateContent = await vault.read(templateFile);
+                } catch (err) {
+                    error("Failed to read template file:", err);
+                }
+            }
+        }
+
+        const pathSegments = filepath.split('/');
+        let currentPath = '';
+
+        for (const segment of pathSegments) {
+            currentPath += segment; // Build the path segment by segment
+
+            if (!currentPath.includes(".md")) {
+                // Check if the path refers to an existing file or folder
+                const existingFile = this.app.vault.getAbstractFileByPath(currentPath);
+
+                // If it doesn't exist, or if it exists but is a file (not a folder), try to create the folder
+                if (!existingFile) {
+                    try {
+                        await this.app.vault.createFolder(currentPath);
+                        console.log(`Created folder: ${currentPath}`);
+                    } catch (error) {
+                        // Ignore the error if the folder already exists
+                        // You might want to log other errors though
+                        console.log(`Folder already exists or other error: ${currentPath}`, error);
+                    }
+                }
+                currentPath += '/'; // Add the separator back for the next iteration
+            }
+        }
+
+        return await vault.create(filepath, templateContent);
+    } else throw new Error(`${filepath} already exists. Should not be trying to create`);
+}
 
 
 export function parseTasks(text: string): string[] {
     const header = get(pluginStore)?.settings.taskHeaderName;
     if (!header) throw new Error("Failed to fetch task header setting");
 
-    const sectionStartRegex = new RegExp(`(^#{1,6} ${header}\\s*\\n)`, "gmi");
-    const sectionEndRegex = new RegExp(`(^#{1,6} .*?\\n)([\\s\\S]*)(^#{1,6} )`, "gmi");
+    const lines = text.split('\n');
+    let tasksContent = '';
+    let inTaskSection = false;
 
-    // Extract tasks from the given headers
-    let match, taskString = "";
-    while ((match = sectionStartRegex.exec(text)) != null) {
-        text = text.substring(sectionStartRegex.lastIndex);
-        match = sectionEndRegex.exec(text)
-        taskString += text.substring(0, match?.index);
+    for (const line of lines) {
+        // Check for the task header (case-insensitive and ignoring leading/trailing spaces)
+        const headerMatch = line.match(/^#{1,6}\s*(.*?)\s*$/);
+        if (headerMatch && headerMatch[1].toLowerCase() === header.toLowerCase()) {
+            inTaskSection = true;
+            continue; // Skip the header line itself
+        }
+
+        // If we encounter another header while in the task section, stop
+        if (inTaskSection && headerMatch) {
+            inTaskSection = false;
+            break;
+        }
+
+        // If we are in the task section, add the line to tasksContent
+        if (inTaskSection) {
+            tasksContent += line + '\n';
+        }
     }
 
-    return taskString.split('\n').filter(task => task.startsWith('- [ ]'));
+    // Split the extracted content by line and filter for task lines
+    return tasksContent.split('\n').filter(line => line.trim().startsWith('- [ ]'));
 }
 
 function removeMetadata(text: string): string {

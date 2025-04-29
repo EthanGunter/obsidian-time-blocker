@@ -3,11 +3,6 @@
 	import { moment } from "obsidian";
 
 	export let task: TaskData;
-
-	function handleMove(direction: "up" | "down" | "discard") {
-		// TODO: Implement period movement logic
-		console.log(`Moving task ${direction}`);
-	}
 </script>
 
 <div

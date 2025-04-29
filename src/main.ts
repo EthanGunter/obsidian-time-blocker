@@ -2,7 +2,7 @@ import { Plugin, WorkspaceLeaf } from "obsidian";
 import { TimeBlockModal } from "./ui/TimeBlockModal";
 import { TimeBlockSidebarView, VIEW_TYPE_TIMEBLOCK } from "./ui/TimeBlockSidebarView";
 import { TimeBlockSettingsTab } from "./ui/settings";
-import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./lib/settingsUtilities";
+import { DAILY_NOTES, DEFAULT_SETTINGS, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./lib/settingsUtilities";
 import { pluginStore } from "src/stores/plugin";
 import { TESTMODAL } from "./TESTS/TESTVIEW";
 import { taskStore } from "./stores/tasks";
@@ -56,15 +56,16 @@ export default class TimeBlockPlugin extends Plugin {
         await this.saveData(this.settings);
     }
 
-    public getPeriodSetting(period: Period): { enabled: boolean; format: string; folder?: string; plugin?: string; } {
+    public getPeriodSetting(period: Period): PlannerSetting {
         // Daily notes could come from either plugin
+        /* if (period === 'daily' && pluginExists(DAILY_NOTES))
+            return getDailyNoteSettings();
+        else  */
         if (pluginExists(PERIODIC_NOTES)) {
             // All other periods come from Periodic Notes
             return getPeriodicNoteSettings(period);
         }
-        else if (period === 'daily' && pluginExists(DAILY_NOTES)) {
-            return getDailyNoteSettings();
-        } else {
+        else {
             if (!this.settings.periodFileFormats[period]) {
                 this.settings.periodFileFormats[period] = DEFAULT_SETTINGS.periodFileFormats[period];
             }

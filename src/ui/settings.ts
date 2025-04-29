@@ -1,6 +1,6 @@
 import { App, moment, PluginSettingTab, Setting } from "obsidian";
 import TimeBlockPlugin, { PLUGIN_NAME } from "src/main";
-import { DAILY_NOTES, DEFAULT_SETTINGS, getDailyNoteSettings, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "../lib/settingsUtilities";
+import { DAILY_NOTES, PERIODIC_NOTES, pluginExists } from "../lib/settingsUtilities";
 
 
 const periods: Period[] = [
@@ -69,7 +69,7 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
 
         const managedBy = pluginSettings.plugin
 
-        let format = this.plugin.settings.periodFileFormats[period].format;
+        let format = this.plugin.settings.periodFileFormats[period].filepathFormat;
 
         // Add managed state class to section
         if (managedBy) {
@@ -107,7 +107,7 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
                     .setValue(format)
                     .setDisabled(!!managedBy)
                     .onChange(async (value) => {
-                        this.plugin.settings.periodFileFormats[period].format = value;
+                        this.plugin.settings.periodFileFormats[period].filepathFormat = value;
                         await this.plugin.saveSettings();
 
                         // Update the description text directly instead of refreshing whole UI

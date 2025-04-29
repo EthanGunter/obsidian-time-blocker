@@ -1,5 +1,15 @@
 <script lang="ts">
 	import { moment, Notice } from "obsidian";
+	import { taskStore } from "src/stores/tasks";
+	import { onMount } from "svelte";
+	import TaskView from "./ModalTask.svelte";
+	import type TimeBlockPlugin from "src/main";
+	import { DropEvent, droppable } from "src/lib/dnd";
+	import { deleteTask, moveTask } from "src/lib/taskUtilities";
+	import { log } from "src/lib/logger";
+
+	export let period: Period;
+	export let plugin: TimeBlockPlugin;
 
 	const getPeriodTitle = (period: Period) => {
 		const today = moment();
@@ -16,13 +26,6 @@
 				return today.format("YYYY");
 		}
 	};
-	import { taskStore } from "src/stores/tasks";
-	import { onMount } from "svelte";
-	import TaskView from "./ModalTask.svelte";
-	import type TimeBlockPlugin from "src/main";
-
-	export let period: Period;
-	export let plugin: TimeBlockPlugin;
 
 	let isExpanded = period === "daily";
 	let filepath = "";
@@ -32,7 +35,9 @@
 	$: {
 		if (plugin) {
 			filepath =
-				moment().format(plugin.getPeriodSetting(period).format) + ".md";
+				moment().format(
+					plugin.getPeriodSetting(period).filepathFormat,
+				) + ".md";
 			fileData = taskStore.getFileData(filepath);
 		}
 	}
@@ -43,9 +48,19 @@
 		taskStore.watchFile(currentFile);
 		return () => taskStore.unwatchFile(currentFile);
 	});
+
+	function onTaskDrop(event: DropEvent<TaskData>) {
+		if (event.detail.data) {
+			log(`Moving task ${event.detail.data.content} to ${filepath}`);
+			moveTask(event.detail.data, filepath, period);
+		}
+	}
 </script>
 
-<div class="period-view">
+<div
+	class="period-view"
+	use:droppable={{ accepts: ["task"], onDrop: onTaskDrop }}
+>
 	<header
 		class="period-header"
 		role="button"
@@ -79,7 +94,9 @@
 				{#if numTasks > 0}({numTasks}){/if}
 			</h3>
 		{/if}
-		<span class="file-info">{filepath}</span>
+		<span class="file-info">
+			{filepath}
+		</span>
 	</header>
 
 	{#if isExpanded}

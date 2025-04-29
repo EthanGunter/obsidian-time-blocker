@@ -1,7 +1,7 @@
 // stores/tasks.ts
 import { writable, derived, get } from 'svelte/store';
 import { type Vault, TFile, type EventRef } from 'obsidian';
-import { getTasksFromContent, parseTasks } from 'src/lib/taskUtilities';
+import { getTasksFromFile, parseTasks } from 'src/lib/taskUtilities';
 
 interface FileData {
     content: string;
@@ -34,20 +34,20 @@ function createTaskStore() {
         initialized = true;
     }
 
-    async function loadFileContent(filePath: string) {
+    async function loadFileContent(filepath: string) {
         const state = get(store);
         if (!state.vault) return;
 
-        const file = state.vault.getAbstractFileByPath(filePath);
+        const file = state.vault.getAbstractFileByPath(filepath);
         if (!(file instanceof TFile)) return;
 
         try {
             const content = await state.vault.read(file);
-            const tasks = getTasksFromContent(content);
+            const tasks = await getTasksFromFile(filepath);
 
             update(store => {
                 const newFiles = new Map(store.files);
-                newFiles.set(filePath, { content, tasks });
+                newFiles.set(filepath, { content, tasks });
                 return { ...store, files: newFiles };
             });
         } catch (error) {
@@ -55,38 +55,38 @@ function createTaskStore() {
         }
     }
 
-    function watchFile(filePath: string) {
+    function watchFile(filepath: string) {
         const state = get(store);
-        if (!state.vault || state.watchers.has(filePath)) return;
+        if (!state.vault || state.watchers.has(filepath)) return;
 
-        const file = state.vault.getAbstractFileByPath(filePath);
+        const file = state.vault.getAbstractFileByPath(filepath);
         if (!(file instanceof TFile)) return;
 
         const watcher = state.vault.on('modify', (changedFile) => {
-            if (changedFile.path === filePath) {
-                loadFileContent(filePath);
+            if (changedFile.path === filepath) {
+                loadFileContent(filepath);
             }
         });
 
         update(store => {
             const newWatchers = new Map(store.watchers);
-            newWatchers.set(filePath, watcher);
+            newWatchers.set(filepath, watcher);
             return { ...store, watchers: newWatchers };
         });
 
-        loadFileContent(filePath);
+        loadFileContent(filepath);
     }
 
-    function unwatchFile(filePath: string) {
+    function unwatchFile(filepath: string) {
         update(store => {
-            const watcher = store.watchers.get(filePath);
+            const watcher = store.watchers.get(filepath);
             if (watcher && store.vault) {
                 store.vault.offref(watcher);
                 const newWatchers = new Map(store.watchers);
-                newWatchers.delete(filePath);
+                newWatchers.delete(filepath);
 
                 const newFiles = new Map(store.files);
-                newFiles.delete(filePath);
+                newFiles.delete(filepath);
 
                 return { ...store, watchers: newWatchers, files: newFiles };
             }
@@ -94,9 +94,9 @@ function createTaskStore() {
         });
     }
 
-    function getFileData(filePath: string) {
+    function getFileData(filepath: string) {
         return derived({ subscribe }, ($store) => {
-            return $store.files.get(filePath) || null;
+            return $store.files.get(filepath) || null;
         });
     }
 

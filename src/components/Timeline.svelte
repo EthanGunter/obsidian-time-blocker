@@ -3,7 +3,7 @@
 	import type TimeBlockPlugin from "src/main";
 	import {
 		getTasksFromFile,
-		updateTaskInFile,
+		updateTask,
 		serializeTask,
 	} from "src/lib/taskUtilities";
 	import TaskView from "./TimelineTask.svelte";
@@ -30,7 +30,7 @@
 	pluginStore.subscribe((value) => {
 		plugin = value;
 		filepath =
-			moment().format(plugin.getPeriodSetting("daily").format) + ".md";
+			moment().format(plugin.getPeriodSetting("daily").filepathFormat) + ".md";
 	});
 
 	const fileData = taskStore.getFileData(filepath);
@@ -107,18 +107,9 @@
 		start: moment.Moment,
 		end: moment.Moment,
 	) {
-		const updatedTask: TaskData = {
-			...task,
-			metadata: { ...task.metadata, scheduled: { start, end } },
-		};
-		console.log("Updating task:", updatedTask);
-
-		const dailyFormat = plugin.getPeriodSetting("daily").format;
-		const filepath = moment().format(dailyFormat) + ".md";
-		await updateTaskInFile(
-			filepath,
-			task.raw,
-			`${serializeTask(updatedTask)}`,
+		await updateTask(
+			task,
+			{metadata:{ ...task.metadata, scheduled: { start, end } }}
 		);
 	}
 
