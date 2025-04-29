@@ -189,12 +189,12 @@ export async function moveTask(task: TaskData, targetFilepath: string, period: P
     }
     return false;
 }
-export async function createFile(vault: Vault, period: Period, filepath: string): Promise<TFile> {
-    await this.app.vault.create("TestTemplater.md", "<% tp.file.cursor() %>");
 
+export async function createFile(vault: Vault, period: Period, filepath: string): Promise<TFile | null> {
     // Get/Create target file
     let targetFile = vault.getAbstractFileByPath(filepath);
-    if (!targetFile) {
+    if (targetFile instanceof TFile) return targetFile;
+    else {
         // Use periodic/daily note templates if available
         const plugin = get(pluginStore);
         const periodSettings = plugin.getPeriodSetting(period);
@@ -237,8 +237,10 @@ export async function createFile(vault: Vault, period: Period, filepath: string)
             }
         }
 
-        return await vault.create(filepath, templateContent);
-    } else throw new Error(`${filepath} already exists. Should not be trying to create`);
+        const file = await vault.create(filepath, templateContent);
+        await plugin.app.workspace.getLeaf(true).openFile(file);
+        return file;
+    }
 }
 
 

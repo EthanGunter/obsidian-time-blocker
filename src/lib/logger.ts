@@ -16,7 +16,7 @@ function message(msg: any[], opt: options) {
     }
 
     if (opt.writeToFile) {
-        console.error("Error file writing Not Implemented");
+        // console.error("Error file writing Not Implemented");
     }
 
     switch (opt.level) {

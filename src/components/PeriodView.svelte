@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { moment, Notice } from "obsidian";
+	import { moment, normalizePath, Notice } from "obsidian";
 	import { taskStore } from "src/stores/tasks";
 	import { onMount } from "svelte";
 	import TaskView from "./ModalTask.svelte";
@@ -29,6 +29,8 @@
 
 	let isExpanded = period === "daily";
 	let filepath = "";
+	let fileExists = false;
+
 	let fileData = taskStore.getFileData(filepath);
 	$: numTasks = $fileData?.tasks?.length || 0;
 
@@ -38,6 +40,9 @@
 				moment().format(
 					plugin.getPeriodSetting(period).filepathFormat,
 				) + ".md";
+			fileExists = !!plugin.app.vault.getAbstractFileByPath(
+				normalizePath(filepath),
+			);
 			fileData = taskStore.getFileData(filepath);
 		}
 	}
@@ -49,10 +54,15 @@
 		return () => taskStore.unwatchFile(currentFile);
 	});
 
-	function onTaskDrop(event: DropEvent<TaskData>) {
+	async function onTaskDrop(event: DropEvent<TaskData>) {
 		if (event.detail.data) {
 			log(`Moving task ${event.detail.data.content} to ${filepath}`);
-			moveTask(event.detail.data, filepath, period);
+			const success = await moveTask(event.detail.data, filepath, period);
+
+			if (success) {
+				// Refresh file existence check and watcher
+				taskStore.watchFile(filepath);
+			}
 		}
 	}
 </script>
@@ -94,7 +104,7 @@
 				{#if numTasks > 0}({numTasks}){/if}
 			</h3>
 		{/if}
-		<span class="file-info">
+		<span class="file-info" class:no-file={!fileExists}>
 			{filepath}
 		</span>
 	</header>
@@ -196,5 +206,9 @@
 		margin-left: auto;
 		font-size: 0.8em;
 		opacity: 0.7;
+
+		&.no-file {
+			color: red;
+		}
 	}
 </style>

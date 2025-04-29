@@ -1,10 +1,10 @@
 - [ ] Add task droppable behavior to PeriodView root
     - [x] Use periodic templates to create new notes that don't exist
-        - [ ] Figure out why templater doesn't run when a new file is created...
+        - [x] Figure out why templater doesn't run when a new file is created...
     - [ ] Files that are created don't get "watched" so they don't update the modal UI when the file starts existing
 - [ ] If a task is dropped on the timeline from any period other than today, move it to today
 - [ ] Closing the modal unpopulates the scheduled tasks in the sidebar...
-- [ ] Handle dependency settings update
+- [ ] Handle dependency-settings update
     ```ts
     this.registerEvent(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
