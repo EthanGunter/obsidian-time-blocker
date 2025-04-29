@@ -29,10 +29,10 @@
 
 	let isExpanded = period === "daily";
 	let filepath = "";
-	let fileExists = false;
-
 	let fileData = taskStore.getFileData(filepath);
-	$: numTasks = $fileData?.tasks?.length || 0;
+
+	$: numTasks = $fileData?.status === "loaded" ? $fileData.tasks.length : 0;
+	$: fileExists = false;
 
 	$: {
 		if (plugin) {
@@ -94,25 +94,19 @@
 		>
 			<path d="m6 9 6 6 6-6" />
 		</svg>
-		{#if isExpanded}
-			<h3 class:no-task={numTasks === 0}>
-				{getPeriodTitle(period)}
-			</h3>
-		{:else}
-			<h3 class:no-task={numTasks === 0}>
-				{getPeriodTitle(period)}
-				{#if numTasks > 0}({numTasks}){/if}
-			</h3>
-		{/if}
-		<span class="file-info" class:no-file={!fileExists}>
+		<h3 class:no-file={!fileExists}>
+			{getPeriodTitle(period)}
+		</h3>
+		<span class="count-indicator">{numTasks}</span>
+		<!-- <span class="file-info">
 			{filepath}
-		</span>
+		</span> -->
 	</header>
 
 	{#if isExpanded}
 		<div class="tasks-container">
 			{#if numTasks}
-				{#if $fileData && $fileData.tasks}
+				{#if $fileData && $fileData.status === "loaded"}
 					{#each $fileData.tasks as task}
 						<TaskView {task} />
 					{/each}
@@ -170,7 +164,7 @@
 		}
 		h3 {
 			padding-left: 1rem;
-			&.no-task {
+			&.no-file {
 				color: var(--text-faint);
 			}
 		}
@@ -201,14 +195,14 @@
 		justify-content: center;
 		min-height: 20px;
 	}
-
+	.count-indicator {
+		color: var(--text-faint);
+		margin-left: 1rem;
+		// font-size: .8em;
+	}
 	.file-info {
 		margin-left: auto;
 		font-size: 0.8em;
 		opacity: 0.7;
-
-		&.no-file {
-			color: red;
-		}
 	}
 </style>

@@ -3,10 +3,9 @@ import { writable, derived, get } from 'svelte/store';
 import { type Vault, TFile, type EventRef } from 'obsidian';
 import { getTasksFromFile, parseTasks } from 'src/lib/taskUtilities';
 
-interface FileData {
-    content: string;
-    tasks: TaskData[]; // Your parsed task type
-}
+export type FileData =
+    | { status: "pending" }
+    | { status: "loaded", tasks: TaskData[], content: string }
 
 interface TaskStoreState {
     vault: Vault | null;
@@ -39,23 +38,29 @@ function createTaskStore() {
         if (!state.vault) return;
 
         const file = state.vault.getAbstractFileByPath(filepath);
-        if (!(file instanceof TFile)) return;
-
-        try {
-            const content = await state.vault.read(file);
-            const tasks = await getTasksFromFile(filepath);
-
+        if (!file) {
             update(store => {
-                const newFiles = new Map(store.files);
-                newFiles.set(filepath, { content, tasks });
-                return { ...store, files: newFiles };
-            });
-        } catch (error) {
-            console.error('Error reading file:', error);
+                store.files.set(filepath, { status: "pending" })
+                return { ...store, files: store.files } // TODO I'm not sure this will trigger an update
+            })
+        } else if (file instanceof TFile) {
+            try {
+                const content = await state.vault.read(file);
+                const tasks = await getTasksFromFile(filepath);
+
+                update(store => {
+                    const newFiles = new Map(store.files);
+                    newFiles.set(filepath, { status: "loaded", content, tasks });
+                    return { ...store, files: newFiles };
+                });
+            } catch (error) {
+                console.error('Error reading file:', error);
+            }
         }
     }
-
+ 
     function watchFile(filepath: string) {
+        console.log("watchFile", filepath);
         const state = get(store);
         if (!state.vault || state.watchers.has(filepath)) return;
 
@@ -78,6 +83,7 @@ function createTaskStore() {
     }
 
     function unwatchFile(filepath: string) {
+        console.log("unwatchFile", filepath);
         update(store => {
             const watcher = store.watchers.get(filepath);
             if (watcher && store.vault) {
@@ -95,6 +101,8 @@ function createTaskStore() {
     }
 
     function getFileData(filepath: string) {
+        console.log("getFileData", filepath);
+
         return derived({ subscribe }, ($store) => {
             return $store.files.get(filepath) || null;
         });
