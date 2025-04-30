@@ -27,7 +27,8 @@ export const DEFAULT_SETTINGS: TimeBlockPlannerSettings = {
             filepathFormat: '[Journal/Yearly/]YYYY',
         }
     },
-    taskHeaderName: "tasks",
+    taskHeaderTag: "[todo]",
+    newTaskSectionHeaderName: "## Tasks",
     viewSettings: {
         increment: "15-min"
     },

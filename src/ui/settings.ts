@@ -41,19 +41,30 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
         }
 
         const taskHeaderName = new Setting(containerEl)
-            .setName("Task Header Name")
-            .setTooltip(`The name of the header ${PLUGIN_NAME} will look for tasks under`)
+            .setName("Task Header Tag")
+            .setDesc(`The tag appended to section headers that ${PLUGIN_NAME} will look for tasks under`)
             .addText(textField => {
                 textField
-                    .setValue(this.plugin.settings.taskHeaderName)
+                    .setValue(this.plugin.settings.taskHeaderTag)
                     .onChange(async value => {
                         if (validateTaskHeaderValue(value)) {
-                            this.plugin.settings.taskHeaderName = value;
+                            this.plugin.settings.taskHeaderTag = value;
                             await this.plugin.saveSettings();
                             taskHeaderName.setDesc("");
                         } else {
                             taskHeaderName.setDesc("header name is invalid");
                         }
+                    });
+            })
+        const newTaskSectionHeaderName = new Setting(containerEl)
+            .setName("New Task Section Header Name")
+            .setDesc(`The name of the header generated when moving tasks to a file that doesn't have a ${this.plugin.settings.taskHeaderTag} section`)
+            .addText(textField => {
+                textField
+                    .setValue(this.plugin.settings.newTaskSectionHeaderName)
+                    .onChange(async value => {
+                        this.plugin.settings.newTaskSectionHeaderName = value;
+                        await this.plugin.saveSettings();
                     });
             })
 
@@ -65,6 +76,7 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
 
     private createPeriodSection(period: Period) {
         const section = this.containerEl.createDiv('timeblock-period-section');
+        const sectionName = period[0].toUpperCase() + period.slice(1);
         const pluginSettings = this.plugin.getPeriodSetting(period);
 
         const managedBy = pluginSettings.plugin
@@ -79,7 +91,7 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
         // Content area
         if (!this.plugin.settings.periodFileFormats[period].enabled) {
             const headerSetting = new Setting(section)
-                .setName(`${period} Tasks`)
+                .setName(`${sectionName} Tasks`)
                 .setHeading();
             headerSetting.addToggle(toggle => toggle
                 .setValue(this.plugin.settings.periodFileFormats[period].enabled)
@@ -90,7 +102,7 @@ export class TimeBlockSettingsTab extends PluginSettingTab {
                 }));
         } else {
             const headerSetting = new Setting(section)
-                .setName(`${period} Tasks`)
+                .setName(`${sectionName} Tasks`)
                 .setHeading()
                 .addToggle(toggle => toggle
                     .setValue(this.plugin.settings.periodFileFormats[period].enabled)

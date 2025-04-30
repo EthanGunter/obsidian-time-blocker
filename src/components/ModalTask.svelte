@@ -2,7 +2,7 @@
 	import { draggable } from "src/lib/dnd";
 	import { moment } from "obsidian";
 
-	export let task: TaskData;
+	export let task: TaskDataWithFile;
 </script>
 
 <div

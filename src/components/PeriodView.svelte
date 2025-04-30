@@ -32,7 +32,7 @@
 	let fileData = taskStore.getFileData(filepath);
 
 	$: numTasks = $fileData?.status === "loaded" ? $fileData.tasks.length : 0;
-	$: fileExists = false;
+	$: fileExists = $fileData?.status === "loaded";
 
 	$: {
 		if (plugin) {
@@ -40,9 +40,6 @@
 				moment().format(
 					plugin.getPeriodSetting(period).filepathFormat,
 				) + ".md";
-			fileExists = !!plugin.app.vault.getAbstractFileByPath(
-				normalizePath(filepath),
-			);
 			fileData = taskStore.getFileData(filepath);
 		}
 	}
@@ -54,7 +51,7 @@
 		return () => taskStore.unwatchFile(currentFile);
 	});
 
-	async function onTaskDrop(event: DropEvent<TaskData>) {
+	async function onTaskDrop(event: DropEvent<TaskDataWithFile>) {
 		if (event.detail.data) {
 			log(`Moving task ${event.detail.data.content} to ${filepath}`);
 			const success = await moveTask(event.detail.data, filepath, period);

@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { moment } from "obsidian";
 	import type TimeBlockPlugin from "src/main";
-	import {
-		getTasksFromFile,
-		updateTask,
-		serializeTask,
-	} from "src/lib/taskUtilities";
+	import { updateTask } from "src/lib/taskUtilities";
 	import TaskView from "./TimelineTask.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
@@ -30,7 +26,8 @@
 	pluginStore.subscribe((value) => {
 		plugin = value;
 		filepath =
-			moment().format(plugin.getPeriodSetting("daily").filepathFormat) + ".md";
+			moment().format(plugin.getPeriodSetting("daily").filepathFormat) +
+			".md";
 	});
 
 	const fileData = taskStore.getFileData(filepath);
@@ -103,14 +100,13 @@
 	}
 
 	async function scheduleTask(
-		task: TaskData,
+		task: TaskDataWithFile,
 		start: moment.Moment,
 		end: moment.Moment,
 	) {
-		await updateTask(
-			task,
-			{metadata:{ ...task.metadata, scheduled: { start, end } }}
-		);
+		await updateTask(task, {
+			metadata: { ...task.metadata, scheduled: { start, end } },
+		});
 	}
 
 	function handleTaskDrop(e: DropEvent) {
@@ -224,7 +220,7 @@
 			</div>
 		{/each}
 
-		{#if $fileData}
+		{#if $fileData?.status === "loaded"}
 			{#each $fileData.tasks as task}
 				{#if task.metadata.scheduled}
 					<TaskView

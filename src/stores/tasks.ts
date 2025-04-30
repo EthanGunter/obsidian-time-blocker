@@ -1,11 +1,11 @@
 // stores/tasks.ts
 import { writable, derived, get } from 'svelte/store';
 import { type Vault, TFile, type EventRef } from 'obsidian';
-import { getTasksFromFile, parseTasks } from 'src/lib/taskUtilities';
+import { getTasksFromFile } from 'src/lib/taskUtilities';
 
 export type FileData =
     | { status: "pending" }
-    | { status: "loaded", tasks: TaskData[], content: string }
+    | { status: "loaded", tasks: TaskDataWithFile[], content: string }
 
 interface TaskStoreState {
     vault: Vault | null;
@@ -46,11 +46,11 @@ function createTaskStore() {
         } else if (file instanceof TFile) {
             try {
                 const content = await state.vault.read(file);
-                const tasks = await getTasksFromFile(filepath);
+                const sections = await getTasksFromFile(filepath);
 
                 update(store => {
                     const newFiles = new Map(store.files);
-                    newFiles.set(filepath, { status: "loaded", content, tasks });
+                    newFiles.set(filepath, { status: "loaded", content, tasks: sections.flatMap(sec => sec.tasks) });
                     return { ...store, files: newFiles };
                 });
             } catch (error) {
@@ -58,9 +58,8 @@ function createTaskStore() {
             }
         }
     }
- 
+
     function watchFile(filepath: string) {
-        console.log("watchFile", filepath);
         const state = get(store);
         if (!state.vault || state.watchers.has(filepath)) return;
 
@@ -83,7 +82,6 @@ function createTaskStore() {
     }
 
     function unwatchFile(filepath: string) {
-        console.log("unwatchFile", filepath);
         update(store => {
             const watcher = store.watchers.get(filepath);
             if (watcher && store.vault) {
@@ -101,8 +99,6 @@ function createTaskStore() {
     }
 
     function getFileData(filepath: string) {
-        console.log("getFileData", filepath);
-
         return derived({ subscribe }, ($store) => {
             return $store.files.get(filepath) || null;
         });

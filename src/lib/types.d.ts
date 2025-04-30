@@ -9,7 +9,8 @@ declare global { // TODO maybe don't do this...
             quarterly: PlannerSetting
             yearly: PlannerSetting
         },
-        taskHeaderName: string, // The section to pull tasks from
+        taskHeaderTag: string, // The section to pull tasks from
+        newTaskSectionHeaderName: string, // Header name when adding to a file that doesn't have a tasks section
         viewSettings: {
             increment: "15-min" | "30-min" | "hour"
         },
@@ -33,6 +34,8 @@ declare global { // TODO maybe don't do this...
             archived?: Moment;
             status: TaskStatus;
         };
+    }
+    interface TaskDataWithFile extends TaskData {
         filepath: string;
     }
 

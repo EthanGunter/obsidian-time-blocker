@@ -7,7 +7,7 @@
 	import { moment } from "obsidian";
 	import { onMount, onDestroy } from "svelte";
 
-	export let task: TaskData;
+	export let task: TaskDataWithFile;
 	export let resizeRenderer: GhostRenderFunction;
 
 	export let positionStyle: {

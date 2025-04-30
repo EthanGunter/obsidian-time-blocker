@@ -1,7 +1,8 @@
-import { moment, Notice, TFile, TFolder, Vault } from "obsidian";
+import { moment, Notice, Tasks, TFile, TFolder, Vault } from "obsidian";
 import { pluginStore } from "src/stores/plugin";
 import { get } from "svelte/store";
 import { error, log } from "./logger";
+import { escapeRegex } from "./util";
 
 // Metadata patterns
 const SCHEDULE_TIME_REGEX = /@(\d{1,2}:\d{2}[ap]?m?-\d{1,2}:\d{2}[ap]?m?)/gi;
@@ -9,89 +10,29 @@ const SCHEDULE_DATE_REGEX = /⏳ (\d{4}-\d{1,2}-\d{1,2})/gi;
 const ARCHIVE_REGEX = /❌ (\d{4}-\d{2}-\d{2})/gi;
 const TIME_FORMAT = "hh:mma";
 
-export async function getTasksFromFile(filepath: string): Promise<TaskData[]> {
-    const file = get(pluginStore).app.vault.getAbstractFileByPath(filepath);
+export async function getTasksFromFile(filepath: string): Promise<{ header: string, tasks: TaskDataWithFile[] }[]> {
+    const plugin = get(pluginStore);
+    const file = plugin.app.vault.getAbstractFileByPath(filepath);
     if (!file) {
         error([`File not found: ${filepath}`]);
         return [];
     }
 
     if (file instanceof TFile) {
-        const content = await get(pluginStore).app.vault.read(file);
+        const content = await plugin.app.vault.read(file);
 
-        const taskStrings = parseTasks(content);
+        const taskSections = getTaskSections(content);
 
-        return taskStrings.map(task => deserializeTask(task, filepath));
+        taskSections.forEach(section => section.tasks = section.tasks.map(task => ({ ...task, filepath })));
+        console.log(`getTaskSections for ${filepath}`, taskSections);
+
+        return taskSections as { header: string, tasks: TaskDataWithFile[] }[]
     } else return [];
 }
 
-export function serializeTask(task: TaskData): string {
-    let output = "- [ ] " + task.content;
-
-    if (task.metadata.scheduled) {
-        // Format time as HH:mma without dates
-        const start = task.metadata.scheduled.start.format(TIME_FORMAT);
-        const end = task.metadata.scheduled.end.format(TIME_FORMAT);
-
-        output += ` @${start}-${end}`;
-    }
-
-    if (task.metadata.archived) {
-        output += ` ❌ ${moment(task.metadata.archived).format('YYYY-MM-DD')}`;
-    }
-
-    return output;
-}
-
-export function deserializeTask(task: string, filepath: string): TaskData {
-    const archivedMatch = task.match(ARCHIVE_REGEX);
-    const archived = archivedMatch && {
-        archived: moment(archivedMatch[1]).toISOString()
-    };
-
-    // -- Extract scheduled time from task --
-    const timeMatches = task.matchAll(SCHEDULE_TIME_REGEX);
-
-    const firstTime = timeMatches.next().value;
-    const scheduled = firstTime && {
-        scheduled: {
-            start: moment(firstTime[1].split('-')[0], TIME_FORMAT),
-            end: moment(firstTime[1].split('-')[1], TIME_FORMAT)
-        }
-    };
-
-    // Remove any extras
-    for (const time of timeMatches) {
-        task.replace(time[0], "");
-    }
-
-
-    let status: TaskStatus = "active";
-    switch (task.charAt(3)) {
-        case ' ': status = "active"; break;
-        case 'x':
-        case 'X': status = "completed"; break;
-        case '-': status = "canceled"; break;
-        case '/': status = "in-progress"; break;
-        default: status = "completed"; break;
-    }
-
-    const data: TaskData = {
-        raw: task,
-        content: removeMetadata(removeMarkdown(task)).trim(),
-        metadata: {
-            ...archived,
-            ...scheduled,
-            status
-        },
-        filepath
-    }
-
-    return data;
-}
-
-export async function deleteTask(task: TaskData): Promise<boolean> {
-    const file = get(pluginStore).app.vault.getAbstractFileByPath(task.filepath);
+export async function deleteTask(task: TaskDataWithFile): Promise<boolean> {
+    const plugin = get(pluginStore);
+    const file = plugin.app.vault.getAbstractFileByPath(task.filepath);
     if (!file) {
         error([`File not found: ${task.filepath}`]);
         return false;
@@ -99,12 +40,12 @@ export async function deleteTask(task: TaskData): Promise<boolean> {
 
     if (file instanceof TFile) {
         try {
-            const content = await get(pluginStore).app.vault.read(file);
+            const content = await plugin.app.vault.read(file);
             const updatedContent = content.split('\n')
                 .filter(line => line.trim() !== task.raw.trim())
                 .join('\n');
 
-            await get(pluginStore).app.vault.modify(file, updatedContent);
+            await plugin.app.vault.modify(file, updatedContent);
             return true;
         } catch (error) {
             error('Failed to update task:', error);
@@ -112,8 +53,9 @@ export async function deleteTask(task: TaskData): Promise<boolean> {
         }
     } else return false; // TODO elaborate failure
 }
-export async function updateTask(oldTask: TaskData, update: Partial<TaskData>): Promise<boolean> {
-    const file = get(pluginStore).app.vault.getAbstractFileByPath(oldTask.filepath);
+export async function updateTask(oldTask: TaskDataWithFile, update: Partial<TaskData>): Promise<boolean> {
+    const plugin = get(pluginStore);
+    const file = plugin.app.vault.getAbstractFileByPath(oldTask.filepath);
     if (!file) {
         error([`File not found: ${oldTask.filepath}`]);
         return false;
@@ -122,11 +64,11 @@ export async function updateTask(oldTask: TaskData, update: Partial<TaskData>): 
     if (file instanceof TFile) {
         try {
             const newTask = { ...oldTask, ...update };
-            const content = await get(pluginStore).app.vault.read(file);
+            const content = await plugin.app.vault.read(file);
 
             const updatedContent = content.replace(oldTask.raw, serializeTask(newTask));
 
-            await get(pluginStore).app.vault.modify(file, updatedContent);
+            await plugin.app.vault.modify(file, updatedContent);
             return true;
         } catch (error) {
             error('Failed to update task:', error);
@@ -134,9 +76,10 @@ export async function updateTask(oldTask: TaskData, update: Partial<TaskData>): 
         }
     } else return false; // TODO elaborate failure
 }
-export async function moveTask(task: TaskData, targetFilepath: string, period: Period): Promise<boolean> {
+export async function moveTask(task: TaskDataWithFile, targetFilepath: string, period: Period): Promise<boolean> {
     if (task.filepath === targetFilepath) return true;
-    const { vault } = get(pluginStore).app;
+    const plugin = get(pluginStore);
+    const { vault } = plugin.app;
 
     const deletionSuccess = await deleteTask(task);
     if (!deletionSuccess) return false;
@@ -157,9 +100,9 @@ export async function moveTask(task: TaskData, targetFilepath: string, period: P
     if (targetFile instanceof TFile) {
         try {
             let content = await vault.read(targetFile);
-            const header = get(pluginStore)?.settings.taskHeaderName;
+
             const headerRegex = new
-                RegExp(`^(#{1,6})\\s*${header}\\s*$`, "gmi");
+                RegExp(`^(#{1,6}).*${escapeRegex(plugin.settings.taskHeaderTag)}.*$`, "gmi");
 
             if (headerRegex.test(content)) {
                 // Reset regex state after test
@@ -170,10 +113,13 @@ export async function moveTask(task: TaskData, targetFilepath: string, period: P
                     return `${match}\n${taskString}`;
                 });
             } else {
-                // Insert before first YAML frontmatter if exists       
+                let header = plugin.settings.newTaskSectionHeaderName + " " + plugin.settings.taskHeaderTag;
+                if (header[0] !== '#') header = '# ' + header;
+
+                // Insert before first YAML frontmatter if exists  
                 const yamlEnd = content.match(/^---\s*\n/);
                 if (yamlEnd) {
-                    content = content.replace(/^---\s*\n/, `$&\n# ${header}\n${taskString}\n`);
+                    content = content.replace(/^---\s*\n/, `$&\n${header}\n${taskString}\n`);
                 } else {
                     // Insert at top but after any leading comments / empty lines
                     content = `# ${header}\n${taskString}\n\n${content}`;
@@ -190,7 +136,7 @@ export async function moveTask(task: TaskData, targetFilepath: string, period: P
     return false;
 }
 
-export async function createFile(vault: Vault, period: Period, filepath: string): Promise<TFile | null> {
+async function createFile(vault: Vault, period: Period, filepath: string): Promise<TFile | null> {
     // Get/Create target file
     let targetFile = vault.getAbstractFileByPath(filepath);
     if (targetFile instanceof TFile) return targetFile;
@@ -238,42 +184,111 @@ export async function createFile(vault: Vault, period: Period, filepath: string)
         }
 
         const file = await vault.create(filepath, templateContent);
-        await plugin.app.workspace.getLeaf(true).openFile(file);
+        await plugin.app.workspace.getLeaf().openFile(file);
         return file;
     }
 }
 
 
-export function parseTasks(text: string): string[] {
-    const header = get(pluginStore)?.settings.taskHeaderName;
+
+//#region UTILITY
+
+function getTaskSections(content: string): { header: string, tasks: TaskData[] }[] {
+    const sections: { header: string, tasks: TaskData[] }[] = [];
+    const plugin = get(pluginStore);
+    const header = plugin.settings.taskHeaderTag;
     if (!header) throw new Error("Failed to fetch task header setting");
 
-    const lines = text.split('\n');
-    let tasksContent = '';
-    let inTaskSection = false;
+    const lines = content.split('\n');
+    let currentSection: { header: string, tasks: TaskData[] } = { header: "", tasks: [] };
 
+    const headerMatcher = new RegExp(`^#{1,6}.*${escapeRegex(plugin.settings.taskHeaderTag)}.*`, 'i')
+    const taskMatcher = new RegExp(`^- \[\\s\\S\].*`, '')
     for (const line of lines) {
-        // Check for the task header (case-insensitive and ignoring leading/trailing spaces)
-        const headerMatch = line.match(/^#{1,6}\s*(.*?)\s*$/);
-        if (headerMatch && headerMatch[1].toLowerCase() === header.toLowerCase()) {
-            inTaskSection = true;
-            continue; // Skip the header line itself
-        }
+        // Check for the task header tag
+        let headerMatch, taskMatch;
+        if (headerMatch = line.match(headerMatcher)) {
+            // console.log("Matched header", headerMatch[0]);
 
-        // If we encounter another header while in the task section, stop
-        if (inTaskSection && headerMatch) {
-            inTaskSection = false;
-            break;
+            // Push the last collected section and prepare the next
+            if (currentSection.header !== "") {
+                sections.push(currentSection);
+                // console.log("Section complete", currentSection);
+            }
+            currentSection = { header: headerMatch[0], tasks: [] }
         }
+        else if (taskMatch = line.match(taskMatcher)) {
+            currentSection?.tasks.push(deserializeTask(taskMatch[0]))
+            // console.log("Matched task", taskMatch[0], "| Current section:", currentSection?.tasks.map((x: any) => x.content));
+        }
+    }
+    sections.push(currentSection);
 
-        // If we are in the task section, add the line to tasksContent
-        if (inTaskSection) {
-            tasksContent += line + '\n';
+    return sections;
+}
+
+function serializeTask(task: TaskData): string {
+    let output = "- [ ] " + task.content;
+
+    if (task.metadata.scheduled) {
+        // Format time as HH:mma without dates
+        const start = task.metadata.scheduled.start.format(TIME_FORMAT);
+        const end = task.metadata.scheduled.end.format(TIME_FORMAT);
+
+        output += ` @${start}-${end}`;
+    }
+
+    if (task.metadata.archived) {
+        output += ` ❌ ${moment(task.metadata.archived).format('YYYY-MM-DD')}`;
+    }
+
+    return output;
+}
+
+function deserializeTask(task: string): TaskData {
+    const archivedMatch = task.match(ARCHIVE_REGEX);
+    const archived = archivedMatch && {
+        archived: moment(archivedMatch[1]).toISOString()
+    };
+
+    // -- Extract scheduled time from task --
+    const timeMatches = task.matchAll(SCHEDULE_TIME_REGEX);
+
+    const firstTime = timeMatches.next().value;
+    const scheduled = firstTime && {
+        scheduled: {
+            start: moment(firstTime[1].split('-')[0], TIME_FORMAT),
+            end: moment(firstTime[1].split('-')[1], TIME_FORMAT)
+        }
+    };
+
+    // Remove any extras
+    for (const time of timeMatches) {
+        task.replace(time[0], "");
+    }
+
+
+    let status: TaskStatus = "active";
+    switch (task.charAt(3)) {
+        case ' ': status = "active"; break;
+        case 'x':
+        case 'X': status = "completed"; break;
+        case '-': status = "canceled"; break;
+        case '/': status = "in-progress"; break;
+        default: status = "completed"; break;
+    }
+
+    const data: TaskData = {
+        raw: task,
+        content: removeMetadata(removeMarkdown(task)).trim(),
+        metadata: {
+            ...archived,
+            ...scheduled,
+            status
         }
     }
 
-    // Split the extracted content by line and filter for task lines
-    return tasksContent.split('\n').filter(line => line.trim().startsWith('- [ ]'));
+    return data;
 }
 
 function removeMetadata(text: string): string {
@@ -294,3 +309,5 @@ function removeMarkdown(text: string): string {
         .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
         .trim();
 }
+
+//#endregion
