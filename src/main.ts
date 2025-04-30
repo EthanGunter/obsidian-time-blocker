@@ -13,12 +13,12 @@ export default class TimeBlockPlugin extends Plugin {
     modal?: TimeBlockModal;
 
     async onload() {
-        // TODO remove after testing:
+        /* remove after testing:
         this.app.workspace.onLayoutReady(() => {
             // new TESTMODAL(this.app, this).open();
             this.modal = new TimeBlockModal(this.app, this)
             this.modal.open();
-        })
+        }) */
 
         await this.loadSettings();
 

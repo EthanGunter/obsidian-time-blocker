@@ -1,4 +1,5 @@
-- [ ] Add task droppable behavior to PeriodView root
+- [ ] Add a horizontal line that shows the current time on the timeline
+- [x] Add task droppable behavior to PeriodView root
     - [x] Use periodic templates to create new notes that don't exist
         - [x] Figure out why templater doesn't run when a new file is created...
     - [x] Files that are created don't get "watched" so they don't update the modal UI when the file starts existing
