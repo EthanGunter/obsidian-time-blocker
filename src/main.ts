@@ -10,12 +10,14 @@ import { taskStore } from "./stores/tasks";
 export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {
     settings: TimeBlockPlannerSettings;
+    modal?: TimeBlockModal;
 
     async onload() {
         // TODO remove after testing:
         this.app.workspace.onLayoutReady(() => {
             // new TESTMODAL(this.app, this).open();
-            new TimeBlockModal(this.app, this).open();
+            this.modal = new TimeBlockModal(this.app, this)
+            this.modal.open();
         })
 
         await this.loadSettings();
@@ -28,7 +30,8 @@ export default class TimeBlockPlugin extends Plugin {
 
         // Add ribbon icon for modal using Lucide icons
         this.addRibbonIcon("cuboid", "Time Block Planner", () => {
-            new TimeBlockModal(this.app, this).open();
+            this.modal = new TimeBlockModal(this.app, this);
+            this.modal.open();
         });
 
         this.addRibbonIcon("flask-conical", "TEST", () => {

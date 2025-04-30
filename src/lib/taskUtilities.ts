@@ -24,7 +24,6 @@ export async function getTasksFromFile(filepath: string): Promise<{ header: stri
         const taskSections = getTaskSections(content);
 
         taskSections.forEach(section => section.tasks = section.tasks.map(task => ({ ...task, filepath })));
-        console.log(`getTaskSections for ${filepath}`, taskSections);
 
         return taskSections as { header: string, tasks: TaskDataWithFile[] }[]
     } else return [];

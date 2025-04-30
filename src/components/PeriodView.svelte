@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { moment, normalizePath, Notice } from "obsidian";
+	import { moment, normalizePath, Notice, TFile } from "obsidian";
 	import { taskStore } from "src/stores/tasks";
 	import { onMount } from "svelte";
 	import TaskView from "./ModalTask.svelte";
@@ -62,42 +62,82 @@
 			}
 		}
 	}
+
+	async function openFile() {
+		if (!plugin || !filepath) return;
+		const normalizedFilepath = normalizePath(filepath);
+		const file = plugin.app.vault.getAbstractFileByPath(normalizedFilepath);
+
+		if (file instanceof TFile) {
+			// Open file and close modal
+			await plugin.app.workspace.getLeaf().openFile(file);
+			plugin.modal?.close();
+		}
+	}
 </script>
 
 <div
 	class="period-view"
+	class:non-daily={period !== "daily"}
+	class:collapsed={!isExpanded}
 	use:droppable={{ accepts: ["task"], onDrop: onTaskDrop }}
 >
 	<header
 		class="period-header"
-		role="button"
-		tabindex="0"
-		on:click={() => (isExpanded = !isExpanded)}
-		on:keydown={(e) =>
-			(e.key === "Enter" || e.key === " ") && (isExpanded = !isExpanded)}
+		role={period !== "daily" ? "button" : undefined}
+		tabindex={period !== "daily" ? 0 : undefined}
+		on:click={period !== "daily"
+			? () => (isExpanded = !isExpanded)
+			: undefined}
+		on:keydown={period !== "daily"
+			? (e) =>
+					(e.key === "Enter" || e.key === " ") &&
+					(isExpanded = !isExpanded)
+			: undefined}
 	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="20"
-			height="20"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			class="chevron-down"
-			class:rotated={!isExpanded}
-		>
-			<path d="m6 9 6 6 6-6" />
-		</svg>
+		{#if period !== "daily"}
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="20"
+				height="20"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="chevron-down"
+				class:rotated={!isExpanded}
+			>
+				<path d="m6 9 6 6 6-6" />
+			</svg>
+		{/if}
 		<h3 class:no-file={!fileExists}>
 			{getPeriodTitle(period)}
 		</h3>
 		<span class="count-indicator">{numTasks}</span>
-		<!-- <span class="file-info">
-			{filepath}
-		</span> -->
+		{#if fileExists}
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="18"
+				height="18"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="link-icon"
+				on:click|stopPropagation={openFile}
+			>
+				<path
+					d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+				/>
+				<path
+					d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+				/>
+			</svg>
+		{/if}
 	</header>
 
 	{#if isExpanded}
@@ -118,27 +158,46 @@
 <style lang="scss">
 	.period-view {
 		background: var(--background-primary);
-		// border-radius: 8px;
-		// border: 1px solid var(--background-modifier-border);
 		overflow: hidden;
 		position: relative;
 		contain: content;
+
+		&.non-daily {
+			grid-row: auto;
+			margin-top: auto;
+			transition: opacity 0.3s ease;
+
+			.period-header {
+				cursor: pointer;
+				&:hover {
+					background: var(--background-secondary);
+				}
+			}
+
+			.chevron-down {
+				transition: transform 0.2s ease;
+				width: 1.2rem;
+				height: 1.2rem;
+
+				&.rotated {
+					transform: rotate(-90deg);
+				}
+			}
+		}
 	}
 
 	.period-header {
-		cursor: pointer;
+		gap: 0.5rem;
 		display: flex;
 		align-items: center;
 		position: relative;
 		z-index: 1;
+		border-radius: .5rem;
+		padding: 0 1rem;
 
 		background: var(--background-primary);
 
 		transition: background 0.2s ease;
-
-		&:hover {
-			background: var(--background-secondary);
-		}
 
 		&::after {
 			content: "";
@@ -150,15 +209,9 @@
 			background: var(--background-modifier-border);
 		}
 
-		.chevron-down {
-			transition: transform 0.2s ease;
-			width: 1.2rem;
-			height: 1.2rem;
-
-			&.rotated {
-				transform: rotate(-90deg);
-			}
-		}
+		// > * {
+		// 	pointer-events: auto;
+		// }
 		h3 {
 			padding-left: 1rem;
 			&.no-file {
@@ -174,6 +227,8 @@
 		z-index: 0;
 
 		min-height: 3rem;
+		max-height: 50vh;
+		overflow-y: auto;
 
 		gap: 0.7rem;
 		padding: 1rem 0.5rem;
@@ -201,5 +256,16 @@
 		margin-left: auto;
 		font-size: 0.8em;
 		opacity: 0.7;
+	}
+
+	.link-icon {
+		cursor: pointer;
+		margin-left: auto;
+		opacity: 0.7;
+		transition: opacity 0.2s ease;
+
+		&:hover {
+			opacity: 1;
+		}
 	}
 </style>
