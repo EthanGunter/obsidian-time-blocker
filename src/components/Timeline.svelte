@@ -232,7 +232,7 @@
 						{#if task.metadata.scheduled}
 							<TaskView
 								{task}
-								--grid-row={calcGridRow(
+								gridRow={calcGridRow(
 									task.metadata.scheduled.start,
 									task.metadata.scheduled.end,
 								)}
@@ -259,6 +259,7 @@
 		grid-template-rows: repeat(var(--slot-count), 2rem);
 
 		padding: 1rem 0;
+		overflow-x: hidden;
 		overflow-y: scroll;
 	}
 
@@ -287,8 +288,6 @@
 	.time-slot-background,
 	.scheduled-tasks {
 		position: absolute;
-		top: 0;
-		left: 0;
 	}
 	.time-slot-background {
 		pointer-events: none;

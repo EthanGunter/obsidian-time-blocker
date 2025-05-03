@@ -7,11 +7,13 @@
 	import { moment } from "obsidian";
 
 	export let task: TaskDataWithFile;
+	export let gridRow: string;
 	export let resizeRenderer: GhostRenderFunction;
 </script>
 
 <div
 	class="timeline-task"
+	style={`grid-row: ${gridRow}`}
 	use:dragGroup
 	use:draggable={{
 		type: "task",
