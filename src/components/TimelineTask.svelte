@@ -5,22 +5,9 @@
 		type GhostRenderFunction,
 	} from "src/lib/dnd";
 	import { moment } from "obsidian";
-	import { onMount, onDestroy } from "svelte";
 
 	export let task: TaskDataWithFile;
 	export let resizeRenderer: GhostRenderFunction;
-
-	export let positionStyle: {
-		top?: string;
-		left?: string;
-		width?: string;
-		height?: string;
-	} = {
-		height: "2rem",
-	};
-	$: serializedStyle = Object.entries(positionStyle)
-		.map(([k, v]) => `${k}: ${v}`)
-		.join("; ");
 </script>
 
 <div
@@ -31,7 +18,6 @@
 		data: task,
 		// devDelay: 60000,
 	}}
-	style={serializedStyle}
 >
 	<span
 		class="resize-handle top"
@@ -58,7 +44,8 @@
 
 <style lang="scss">
 	.timeline-task {
-		position: absolute;
+		// position: absolute;
+		grid-row: var(--grid-row);
 		display: flex;
 		flex-direction: column;
 		background-color: color-mix(

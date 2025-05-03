@@ -23,5 +23,6 @@
 		display: grid;
 		grid-template-rows: auto repeat(var(--data-periodcount), min-content); /* Daily + 4 periods */
 		gap: 1rem;
+		height: 100%;
 	}
 </style>

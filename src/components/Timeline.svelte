@@ -16,10 +16,17 @@
 		start: moment("06:00a", "hh:mma"),
 		end: moment("10:00p", "hh:mma"),
 	};
-	const BLOCK_SPAN = 60; // minutes
+	const BLOCK_SPAN = 60; // 1 hr
 	const SNAP_INCREMENT = 30; // minutes
-	const TIME_COLUMN_WIDTH = "3rem";
+	const INC_PER_SLOT = BLOCK_SPAN / SNAP_INCREMENT;
+	const SPAN_HOURS = timeRange.end.diff(timeRange.start, "minutes") / 60;
+	const ROW_COUNT = SPAN_HOURS * INC_PER_SLOT;
+	console.log(ROW_COUNT, SPAN_HOURS);
+
+	const hourSlots = generateTimeSlots();
+
 	let timelineGrid: HTMLElement;
+	let timelineSlots: HTMLElement;
 
 	let filepath = "";
 	let plugin: TimeBlockPlugin;
@@ -39,11 +46,6 @@
 	// --- Time/Pixel Math Utilities ---
 	function getGridRect() {
 		return timelineGrid?.getBoundingClientRect();
-	}
-	function getBlockRect(): DOMRect | null {
-		if (!timelineGrid) return null;
-		const block = timelineGrid.querySelector(".timeline-block");
-		return block ? block.getBoundingClientRect() : null;
 	}
 	function posToTime(y: number): moment.Moment {
 		const gridRect = getGridRect();
@@ -68,33 +70,30 @@
 		const percent = minutesFromStart / totalMinutes;
 		return gridRect.top + percent * gridRect.height;
 	}
+	function timeToRow(time: moment.Moment): number {
+		const minutesFromStart = time.diff(timeRange.start, "minutes");
+		const slotNum =
+			Math.ceil((minutesFromStart / BLOCK_SPAN) * INC_PER_SLOT) + 1;
 
-	function calcPositionParams(start: moment.Moment, end: moment.Moment) {
-		const gridRect = getGridRect();
-		const blockRect = getBlockRect();
-		if (!gridRect || !blockRect) return {};
-		const top = timeToPos(start) - gridRect.top;
-		const bottom = timeToPos(end) - gridRect.top;
-		const height = bottom - top;
-		return {
-			top: `${top}px`,
-			height: `${height}px`,
-			width: `${blockRect.width}px`,
-			left: `${blockRect.left - gridRect.left}px`,
-		};
+		return slotNum;
+	}
+
+	function calcGridRow(start: moment.Moment, end: moment.Moment) {
+		const startRow = timeToRow(start);
+		const endRow = timeToRow(end);
+		return `${startRow} / ${endRow}`;
 	}
 
 	function generateTimeSlots() {
 		const gridStart = moment(timeRange.start);
 		const gridEnd = moment(timeRange.end);
 		const totalMinutes = gridEnd.diff(gridStart, "minutes");
-		const slotCount = Math.ceil(totalMinutes / BLOCK_SPAN);
+		const slotCount = Math.ceil(totalMinutes / BLOCK_SPAN) + 1; //+1 allows final hour to display
 		return Array.from({ length: slotCount }, (_, i) => {
 			const slotTime = gridStart.clone().add(i * BLOCK_SPAN, "minutes");
 			return {
 				time: slotTime,
-				isHourMark: slotTime.minutes() === 0,
-				index: i,
+				rowStart: i * INC_PER_SLOT + 1, // Grid uses 1-based index
 			};
 		});
 	}
@@ -142,16 +141,17 @@
 		posData,
 		setPosition,
 	}: GhostRenderArgs<TaskData>) {
-		const blockRect = getBlockRect();
-		if (!blockRect) return;
 		if (draggableType.includes("resize")) return; // Let draggable override handle resize
 
-		const x = blockRect.left;
+		const slotRect = timelineSlots.getBoundingClientRect();
+		if (!slotRect) return;
+
+		const x = slotRect.left;
 		const snappedTime = posToTime(posData.clientY + posData.offsetY);
 		const snappedY = timeToPos(snappedTime);
 
 		setPosition({ x, y: snappedY });
-		ghost.style.width = `${blockRect.width}px`;
+		ghost.style.width = `${slotRect.width}px`;
 	}
 
 	const taskResizeRenderer = ({
@@ -162,14 +162,16 @@
 		posData,
 		setPosition,
 	}: GhostRenderArgs<TaskData>) => {
-		const gridRect = timelineGrid?.getBoundingClientRect();
-		if (!gridRect || !data?.metadata.scheduled) return;
 		if (!draggableType.includes("resize")) return;
 
-		const blockRect = getBlockRect();
-		if (!blockRect) return;
-		const x = blockRect.left;
-		const width = blockRect.width;
+		const gridRect = timelineGrid?.getBoundingClientRect();
+		if (!gridRect || !data?.metadata.scheduled) return;
+
+		const slotRect = timelineSlots.getBoundingClientRect();
+		if (!slotRect) return;
+
+		const x = slotRect.left;
+		const width = slotRect.width;
 
 		const snappedTime = posToTime(posData.clientY);
 		const snappedY = timeToPos(snappedTime);
@@ -197,75 +199,100 @@
 	};
 </script>
 
-<div class="timeline">
+<div class="timeline-container" style={`--slot-count: ${ROW_COUNT}`}>
 	<h3>Schedule</h3>
 	<div
-		class="timeline-grid"
-		bind:this={timelineGrid}
+		class="timeline"
 		use:droppable={{
 			accepts: ["task", "task/resize/*"],
 			onDrop: handleTaskDrop,
 			ghostRenderOverride: handleGhostRender,
 		}}
-		style="--time-text-width: {TIME_COLUMN_WIDTH}"
 	>
-		{#each generateTimeSlots() as slot}
-			<div class="timeline-slot">
-				<div class="timeline-time">
-					{#if slot.isHourMark}
-						{slot.time.format("h A")}
-					{/if}
+		<div class="time-markers">
+			{#each hourSlots as slot}
+				<div class="time-mark" style={`--start: ${slot.rowStart}`}>
+					{slot.time.format("h A")}
 				</div>
-				<div class="timeline-block"></div>
-			</div>
-		{/each}
-
-		{#if $fileData?.status === "loaded"}
-			{#each $fileData.tasks as task}
-				{#if task.metadata.scheduled}
-					<TaskView
-						{task}
-						positionStyle={calcPositionParams(
-							task.metadata.scheduled.start,
-							task.metadata.scheduled.end,
-						)}
-						resizeRenderer={taskResizeRenderer}
-					/>
-				{/if}
 			{/each}
-		{/if}
+		</div>
+		<div class="time-slots" bind:this={timelineSlots}>
+			<div class="time-slot-background">
+				{#each hourSlots as slot}
+					<div
+						class="time-slot"
+						style={`--start: ${slot.rowStart}`}
+					/>
+				{/each}
+			</div>
+			<div class="scheduled-tasks">
+				{#if $fileData?.status === "loaded"}
+					{#each $fileData.tasks as task}
+						{#if task.metadata.scheduled}
+							<TaskView
+								{task}
+								--grid-row={calcGridRow(
+									task.metadata.scheduled.start,
+									task.metadata.scheduled.end,
+								)}
+								resizeRenderer={taskResizeRenderer}
+							/>
+						{/if}
+					{/each}
+				{/if}
+			</div>
+		</div>
 	</div>
 </div>
 
 <style lang="scss">
-	.timeline-grid {
-		position: relative;
-		margin-bottom: 1rem;
-		&::-webkit-scrollbar {
-			width: 8px;
-		}
-		&::-webkit-scrollbar-thumb {
-			background-color: var(--background-modifier-border);
-			border-radius: 4px;
-		}
+	.timeline-container {
+		display: flex;
+		flex-grow: 1;
+		flex-direction: column;
+		// overflow: hidden;
 	}
-	.timeline-slot {
+
+	.timeline {
 		display: grid;
-		grid-template-columns: var(--time-text-width) 1fr;
-		margin: 0 4px;
+		grid-template-columns: 3rem auto;
+		grid-template-rows: repeat(var(--slot-count), 2rem);
+	}
+
+	.time-markers,
+	.time-slot-background,
+	.scheduled-tasks {
+		display: grid;
+		grid-template-rows: repeat(var(--slot-count), 2rem);
 		width: 100%;
 	}
-	.timeline-time {
-		color: var(--text-muted);
-		font-size: 0.8em;
-		margin-top: calc(-1em / 1.75);
+	.time-slots{
+		position: relative;
 	}
-	.timeline-block {
-		box-sizing: border-box;
-		border-top: 1px solid var(--background-modifier-border);
-		border-bottom: 1px solid var(--background-modifier-border);
-		border-right: 2px solid var(--background-modifier-border);
-		border-left: 2px solid var(--background-modifier-border);
-		height: 2rem;
+	.time-slot-background,
+	.scheduled-tasks {
+		position: absolute;
+		top: 0;
+		left: 0;
+	}
+
+	.time-markers {
+		display: grid;
+		width: 3rem;
+		.time-mark {
+			grid-row-start: var(--start);
+			color: var(--text-muted);
+			font-size: 0.8em;
+			margin-top: calc(-1em / 1.75);
+		}
+	}
+	.time-slots {
+		.time-slot {
+			grid-row-start: var(--start);
+			width: 100%;
+			box-sizing: border-box;
+			border-top: 2px solid var(--background-modifier-border);
+			height: 2rem;
+		}
 	}
 </style>

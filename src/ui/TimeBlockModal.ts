@@ -1,6 +1,6 @@
 import { App, Modal } from "obsidian";
 import type TimeBlockPlugin from "src/main";
-import TimeBlockView from "../components/ModalView.svelte";
+import ModalView from "../components/ModalView.svelte";
 
 export class TimeBlockModal extends Modal {
   component: any = null;
@@ -11,12 +11,15 @@ export class TimeBlockModal extends Modal {
   }
 
   async onOpen() {
-    this.component = new TimeBlockView({ target: this.contentEl });
     const modalEl = document.querySelector(".modal") as HTMLElement | null;
+
     if (modalEl) {
       modalEl.style.setProperty("width", "100%");
+      modalEl.style.setProperty("height", "100%");
       // modalEl.style.setProperty("overflow", "hidden");
     }
+
+    this.component = new ModalView({ target: this.contentEl });
   }
 
   onClose() {
