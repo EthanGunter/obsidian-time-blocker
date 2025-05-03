@@ -2,6 +2,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { type Vault, TFile, type EventRef } from 'obsidian';
 import { getTasksFromFile } from 'src/lib/taskUtilities';
+import { error } from 'src/lib/logger';
 
 export type FileData =
     | { status: "pending" }
@@ -11,6 +12,7 @@ interface TaskStoreState {
     vault: Vault | null;
     files: Map<string, FileData>;
     watchers: Map<string, EventRef>;
+    watcherCount: Map<string, number>;
 }
 
 function createTaskStore() {
@@ -18,6 +20,7 @@ function createTaskStore() {
         vault: null,
         files: new Map(),
         watchers: new Map(),
+        watcherCount: new Map(),
     });
 
     let initialized = false;
@@ -29,6 +32,7 @@ function createTaskStore() {
             vault,
             files: new Map(),
             watchers: new Map(),
+            watcherCount: new Map(),
         });
         initialized = true;
     }
@@ -61,7 +65,11 @@ function createTaskStore() {
 
     function watchFile(filepath: string) {
         const state = get(store);
-        if (!state.vault || state.watchers.has(filepath)) return;
+        const count = state.watcherCount.get(filepath) || 0;
+        state.watcherCount.set(filepath, count + 1);
+        console.log(state.watcherCount.get(filepath), "watchers for", filepath);
+
+        if (count > 0 || !state.vault || state.watchers.has(filepath)) return;
 
         const file = state.vault.getAbstractFileByPath(filepath);
         if (!(file instanceof TFile)) return;
@@ -82,9 +90,16 @@ function createTaskStore() {
     }
 
     function unwatchFile(filepath: string) {
+        console.log("New unwatchFile request for", filepath);
+        
         update(store => {
+            const count = store.watcherCount.get(filepath) || 0;
             const watcher = store.watchers.get(filepath);
-            if (watcher && store.vault) {
+            if (count > 0) {
+                store.watcherCount.set(filepath, count - 1);
+                console.log(store.watcherCount.get(filepath), "watchers for", filepath);
+            }
+            else if (watcher && store.vault) {
                 store.vault.offref(watcher);
                 const newWatchers = new Map(store.watchers);
                 newWatchers.delete(filepath);
@@ -94,6 +109,8 @@ function createTaskStore() {
 
                 return { ...store, watchers: newWatchers, files: newFiles };
             }
+            console.log(store.watcherCount.get(filepath), "watchers for", filepath);
+
             return store;
         });
     }
