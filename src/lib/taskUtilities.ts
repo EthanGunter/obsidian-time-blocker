@@ -202,12 +202,15 @@ function getTaskSections(content: string): { header: string, tasks: TaskData[] }
     let currentSection: { header: string, tasks: TaskData[] } = { header: "", tasks: [] };
 
     const headerMatcher = new RegExp(`^#{1,6}.*${escapeRegex(plugin.settings.taskHeaderTag)}.*`, 'i')
-    const taskMatcher = new RegExp(`^- \[\\s\\S\].*`, '')
+    const taskMatcher = new RegExp(`^- \\[ ].*[A-z]+`);
+    const TEST = "- [ ] This is a task!".match(taskMatcher);
+    console.log(TEST);
+
     for (const line of lines) {
         // Check for the task header tag
         let headerMatch, taskMatch;
         if (headerMatch = line.match(headerMatcher)) {
-            // console.log("Matched header", headerMatch[0]);
+            console.log("HEADER:", headerMatch[0]);
 
             // Push the last collected section and prepare the next
             if (currentSection.header !== "") {
@@ -218,7 +221,7 @@ function getTaskSections(content: string): { header: string, tasks: TaskData[] }
         }
         else if (taskMatch = line.match(taskMatcher)) {
             currentSection?.tasks.push(deserializeTask(taskMatch[0]))
-            // console.log("Matched task", taskMatch[0], "| Current section:", currentSection?.tasks.map((x: any) => x.content));
+            console.log("TASK:", taskMatch[0], "| Current section:", currentSection?.tasks.map((x: any) => x.content));
         }
     }
     sections.push(currentSection);
