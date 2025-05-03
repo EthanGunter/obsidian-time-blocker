@@ -2,10 +2,11 @@ import { Plugin, WorkspaceLeaf } from "obsidian";
 import { TimeBlockModal } from "./ui/TimeBlockModal";
 import { TimeBlockSidebarView, VIEW_TYPE_TIMEBLOCK } from "./ui/TimeBlockSidebarView";
 import { TimeBlockSettingsTab } from "./ui/settings";
-import { DAILY_NOTES, DEFAULT_SETTINGS, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./lib/settingsUtilities";
+import { DEFAULT_SETTINGS, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists } from "./lib/settingsUtilities";
 import { pluginStore } from "src/stores/plugin";
-import { TESTMODAL } from "./TESTS/TESTVIEW";
 import { taskStore } from "./stores/tasks";
+
+export const DEBUG = true;
 
 export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {
@@ -32,10 +33,6 @@ export default class TimeBlockPlugin extends Plugin {
         this.addRibbonIcon("cuboid", "Time Block Planner", () => {
             this.modal = new TimeBlockModal(this.app, this);
             this.modal.open();
-        });
-
-        this.addRibbonIcon("flask-conical", "TEST", () => {
-            new TESTMODAL(this.app, this).open();
         });
 
         // Add command for sidebar view
