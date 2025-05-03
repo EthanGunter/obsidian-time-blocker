@@ -203,6 +203,7 @@
 	<h3>Schedule</h3>
 	<div
 		class="timeline"
+		bind:this={timelineGrid}
 		use:droppable={{
 			accepts: ["task", "task/resize/*"],
 			onDrop: handleTaskDrop,
@@ -248,15 +249,17 @@
 <style lang="scss">
 	.timeline-container {
 		display: flex;
-		flex-grow: 1;
 		flex-direction: column;
-		// overflow: hidden;
+		overflow: hidden;
 	}
 
 	.timeline {
 		display: grid;
 		grid-template-columns: 3rem auto;
 		grid-template-rows: repeat(var(--slot-count), 2rem);
+
+		padding: 1rem 0;
+		overflow-y: scroll;
 	}
 
 	.time-markers,
@@ -266,18 +269,8 @@
 		grid-template-rows: repeat(var(--slot-count), 2rem);
 		width: 100%;
 	}
-	.time-slots{
-		position: relative;
-	}
-	.time-slot-background,
-	.scheduled-tasks {
-		position: absolute;
-		top: 0;
-		left: 0;
-	}
 
 	.time-markers {
-		display: grid;
 		width: 3rem;
 		.time-mark {
 			grid-row-start: var(--start);
@@ -286,13 +279,25 @@
 			margin-top: calc(-1em / 1.75);
 		}
 	}
+
+	// Overlay grids
 	.time-slots {
-		.time-slot {
-			grid-row-start: var(--start);
-			width: 100%;
-			box-sizing: border-box;
-			border-top: 2px solid var(--background-modifier-border);
-			height: 2rem;
-		}
+		position: relative;
+	}
+	.time-slot-background,
+	.scheduled-tasks {
+		position: absolute;
+		top: 0;
+		left: 0;
+	}
+	.time-slot-background {
+		pointer-events: none;
+	}
+	.time-slot {
+		grid-row-start: var(--start);
+		width: 100%;
+		box-sizing: border-box;
+		border-top: 2px solid var(--background-modifier-border);
+		height: 2rem;
 	}
 </style>
