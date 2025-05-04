@@ -202,7 +202,7 @@ function getTaskSections(content: string): { header: string, tasks: TaskData[] }
     let currentSection: { header: string, tasks: TaskData[] } = { header: "", tasks: [] };
 
     const headerMatcher = new RegExp(`^#{1,6}.*${escapeRegex(plugin.settings.taskHeaderTag)}.*`, 'i')
-    const taskMatcher = new RegExp(`^- \\[ ].*[A-z]+`);
+    const taskMatcher = new RegExp(`^- \\[[ -\/xX?]].*[A-z]+`);
 
     for (const line of lines) {
         // Check for the task header tag
@@ -300,7 +300,7 @@ function removeMetadata(text: string): string {
 
 function removeMarkdown(text: string): string {
     return text
-        .replace(/^- \[\s+\] /, "") // Remove "- [ ] " at the beginning of tasks
+        .replace(/^- \[[ -\/xX?]\] /, "") // Remove "- [ ] " at the beginning of tasks
         .replace(/^[\s-*]*\[\s?[xX]?\s?\]\s*/, "") // Remove checkbox and leading bullet
         .replace(/(\*\*|__)(.*?)\1/g, "$2") // Remove bold
         .replace(/(\*|_)(.*?)\1/g, "$2") // Remove italics

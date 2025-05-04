@@ -22,7 +22,6 @@
 	const INC_PER_SLOT = BLOCK_SPAN / SNAP_INCREMENT;
 	const SPAN_HOURS = timeRange.end.diff(timeRange.start, "minutes") / 60;
 	const ROW_COUNT = SPAN_HOURS * INC_PER_SLOT;
-	console.log(ROW_COUNT, SPAN_HOURS);
 
 	const hourSlots = generateTimeSlots();
 

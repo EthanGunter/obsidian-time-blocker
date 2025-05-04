@@ -2,7 +2,7 @@
 	import { moment, normalizePath, Notice, TFile } from "obsidian";
 	import { taskStore } from "src/stores/tasks";
 	import { onMount } from "svelte";
-	import TaskView from "./ModalTask.svelte";
+	import PeriodTask from "./PeriodTask.svelte";
 	import type TimeBlockPlugin from "src/main";
 	import { DropEvent, droppable } from "src/lib/dnd";
 	import { deleteTask, moveTask } from "src/lib/taskUtilities";
@@ -63,9 +63,9 @@
 		}
 	}
 
-	async function openFile(path: string) {
-		if (!plugin || !path) return;
-		const normalizedFilepath = normalizePath(path);
+	async function openFile() {
+		if (!plugin || !filepath) return;
+		const normalizedFilepath = normalizePath(filepath);
 		const file = plugin.app.vault.getAbstractFileByPath(normalizedFilepath);
 
 		if (file instanceof TFile) {
@@ -145,7 +145,7 @@
 			{#if numTasks}
 				{#if $fileData && $fileData.status === "loaded"}
 					{#each $fileData.tasks as task}
-						<TaskView {task} />
+						<PeriodTask {task} />
 					{/each}
 				{/if}
 			{:else}
@@ -192,7 +192,7 @@
 		align-items: center;
 		position: relative;
 		z-index: 1;
-		border-radius: 0.5rem;
+		border-radius: .5rem;
 		padding: 0 1rem;
 
 		background: var(--background-primary);

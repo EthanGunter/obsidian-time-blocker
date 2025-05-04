@@ -9,6 +9,14 @@
 	export let task: TaskDataWithFile;
 	export let gridRow: string;
 	export let resizeRenderer: GhostRenderFunction;
+
+	let statusMarker = "";
+	$: statusMarker =
+		task.metadata.status === "completed"
+			? (statusMarker = "✔ ")
+			: task.metadata.status === "canceled"
+				? (statusMarker = "❌ ")
+				: "⌛ ";
 </script>
 
 <div
@@ -30,9 +38,8 @@
 		}}
 	/>
 	<div class="task-content">
-		{task.content} - {task.metadata.scheduled
-			? moment(task.metadata.scheduled.start).format("hh:mma")
-			: "Unscheduled"}
+		{statusMarker}
+		{task.content}
 	</div>
 	<span
 		class="resize-handle bottom"

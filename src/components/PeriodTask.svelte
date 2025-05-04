@@ -3,6 +3,16 @@
 	import { moment } from "obsidian";
 
 	export let task: TaskDataWithFile;
+
+	let statusMarker = "";
+	$: statusMarker =
+		task.metadata.status === "completed"
+			? (statusMarker = "✔ ")
+			: task.metadata.status === "canceled"
+				? (statusMarker = "❌ ")
+				: task.metadata.scheduled
+					? "🕑 "
+					: "⌛ ";
 </script>
 
 <div
@@ -13,32 +23,9 @@
 		// devDelay: 60000,
 	}}
 >
-	<!-- <button
-		class="move-down"
-		on:click={() => handleMove("down")}
-		title="Move to longer period"
-	>
-		◀︎
-	</button>
-	<button
-		class="discard"
-		on:click={() => handleMove("discard")}
-		title="Discard task"
-	>
-		✕
-	</button> -->
 	<div class="task-content">
-		{task.content} - {task.metadata.scheduled
-			? moment(task.metadata.scheduled.start).format("hh:mma")
-			: "Unscheduled"}
+		{statusMarker}{task.content}
 	</div>
-	<!-- <button
-		class="move-up"
-		on:click={() => handleMove("up")}
-		title="Move to shorter period"
-	>
-		▶︎
-	</button> -->
 </div>
 
 <style lang="scss">
