@@ -67,7 +67,6 @@ function createTaskStore() {
         const state = get(store);
         const count = state.watcherCount.get(filepath) || 0;
         state.watcherCount.set(filepath, count + 1);
-        console.log(state.watcherCount.get(filepath), "watchers for", filepath);
 
         if (count > 0 || !state.vault || state.watchers.has(filepath)) return;
 
@@ -90,14 +89,11 @@ function createTaskStore() {
     }
 
     function unwatchFile(filepath: string) {
-        console.log("New unwatchFile request for", filepath);
-        
         update(store => {
             const count = store.watcherCount.get(filepath) || 0;
             const watcher = store.watchers.get(filepath);
             if (count > 0) {
                 store.watcherCount.set(filepath, count - 1);
-                console.log(store.watcherCount.get(filepath), "watchers for", filepath);
             }
             else if (watcher && store.vault) {
                 store.vault.offref(watcher);
@@ -109,7 +105,6 @@ function createTaskStore() {
 
                 return { ...store, watchers: newWatchers, files: newFiles };
             }
-            console.log(store.watcherCount.get(filepath), "watchers for", filepath);
 
             return store;
         });

@@ -11,6 +11,7 @@
 		type GhostRenderArgs,
 	} from "src/lib/dnd";
 	import { taskStore } from "src/stores/tasks";
+	import { getInnerClientRect } from "src/lib/util";
 
 	let timeRange = {
 		start: moment("06:00a", "hh:mma"),
@@ -25,8 +26,8 @@
 
 	const hourSlots = generateTimeSlots();
 
+	let timeline: HTMLElement;
 	let timelineGrid: HTMLElement;
-	let timelineSlots: HTMLElement;
 
 	let filepath = "";
 	let plugin: TimeBlockPlugin;
@@ -44,32 +45,58 @@
 	});
 
 	// --- Time/Pixel Math Utilities ---
-	function getGridRect() {
-		return timelineGrid?.getBoundingClientRect();
-	}
 	function posToTime(y: number): moment.Moment {
-		const gridRect = getGridRect();
-		if (!gridRect) return timeRange.start.clone();
-		const clampedY = Math.max(gridRect.top, Math.min(y, gridRect.bottom));
-		const percent = (clampedY - gridRect.top) / gridRect.height;
+		const gridInnerRect = getInnerClientRect(timelineGrid);
+		// Return start time if grid isn't rendered yet
+		if (!gridInnerRect || gridInnerRect.height === 0)
+			return timeRange.start.clone();
+
+		// Calculate y relative to the grid's top edge
+		const relativeY = Math.max(
+			0,
+			Math.min(y - gridInnerRect.top, gridInnerRect.height),
+		);
+
+		// Calculate proportion of height
+		const proportion = relativeY / gridInnerRect.height;
+
+		// Calculate total duration in minutes
 		const totalMinutes = timeRange.end.diff(timeRange.start, "minutes");
-		const minutesFromStart = percent * totalMinutes;
+
+		// Calculate minutes from start based on proportion
+		const minutesFromStart = proportion * totalMinutes;
+
+		// Snap to the nearest increment
 		const snappedMinutes =
 			Math.round(minutesFromStart / SNAP_INCREMENT) * SNAP_INCREMENT;
-		let snapped = timeRange.start.clone().add(snappedMinutes, "minutes");
-		if (snapped.isBefore(timeRange.start))
-			snapped = timeRange.start.clone();
-		if (snapped.isAfter(timeRange.end)) snapped = timeRange.end.clone();
-		return snapped;
+
+		return timeRange.start.clone().add(snappedMinutes, "minutes");
 	}
+
 	function timeToPos(time: moment.Moment): number {
-		const gridRect = getGridRect();
-		if (!gridRect) return 0;
+		const gridRect = getInnerClientRect(timelineGrid);
+		// Return 0 if grid isn't rendered yet
+		if (!gridRect || gridRect.height === 0) return 0;
+
+		// Calculate total duration in minutes
 		const totalMinutes = timeRange.end.diff(timeRange.start, "minutes");
-		const minutesFromStart = time.diff(timeRange.start, "minutes");
-		const percent = minutesFromStart / totalMinutes;
-		return gridRect.top + percent * gridRect.height;
+
+		// Calculate minutes from start for the given time, clamped to the range
+		const minutesFromStart = Math.max(
+			0,
+			Math.min(time.diff(timeRange.start, "minutes"), totalMinutes),
+		);
+
+		// Calculate proportion of total duration
+		const proportion = minutesFromStart / totalMinutes;
+
+		// Calculate relative y position
+		const relativeY = proportion * gridRect.height;
+
+		// Return absolute y position relative to viewport
+		return relativeY + gridRect.top;
 	}
+
 	function timeToRow(time: moment.Moment): number {
 		const minutesFromStart = time.diff(timeRange.start, "minutes");
 		const slotNum =
@@ -88,7 +115,7 @@
 		const gridStart = moment(timeRange.start);
 		const gridEnd = moment(timeRange.end);
 		const totalMinutes = gridEnd.diff(gridStart, "minutes");
-		const slotCount = Math.ceil(totalMinutes / BLOCK_SPAN) + 1; //+1 allows final hour to display
+		const slotCount = Math.ceil(totalMinutes / BLOCK_SPAN); //+1 allows final hour to display
 		return Array.from({ length: slotCount }, (_, i) => {
 			const slotTime = gridStart.clone().add(i * BLOCK_SPAN, "minutes");
 			return {
@@ -143,7 +170,7 @@
 	}: GhostRenderArgs<TaskData>) {
 		if (draggableType.includes("resize")) return; // Let draggable override handle resize
 
-		const slotRect = timelineSlots.getBoundingClientRect();
+		const slotRect = timelineGrid.getBoundingClientRect();
 		if (!slotRect) return;
 
 		const x = slotRect.left;
@@ -164,10 +191,10 @@
 	}: GhostRenderArgs<TaskData>) => {
 		if (!draggableType.includes("resize")) return;
 
-		const gridRect = timelineGrid?.getBoundingClientRect();
+		const gridRect = timeline?.getBoundingClientRect();
 		if (!gridRect || !data?.metadata.scheduled) return;
 
-		const slotRect = timelineSlots.getBoundingClientRect();
+		const slotRect = timelineGrid.getBoundingClientRect();
 		if (!slotRect) return;
 
 		const x = slotRect.left;
@@ -203,7 +230,7 @@
 	<h3>Schedule</h3>
 	<div
 		class="timeline"
-		bind:this={timelineGrid}
+		bind:this={timeline}
 		use:droppable={{
 			accepts: ["task", "task/resize/*"],
 			onDrop: handleTaskDrop,
@@ -217,8 +244,8 @@
 				</div>
 			{/each}
 		</div>
-		<div class="time-slots" bind:this={timelineSlots}>
-			<div class="time-slot-background">
+		<div class="time-slots">
+			<div class="time-slot-background" bind:this={timelineGrid}>
 				{#each hourSlots as slot}
 					<div
 						class="time-slot"
@@ -251,12 +278,13 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
+		--template-rows: repeat(var(--slot-count), 2rem);
 	}
 
 	.timeline {
 		display: grid;
 		grid-template-columns: 3rem auto;
-		grid-template-rows: repeat(var(--slot-count), 2rem);
+		grid-template-rows: var(--template-rows);
 
 		padding: 1rem 0;
 		overflow-x: hidden;
@@ -267,7 +295,7 @@
 	.time-slot-background,
 	.scheduled-tasks {
 		display: grid;
-		grid-template-rows: repeat(var(--slot-count), 2rem);
+		grid-template-rows: var(--template-rows);
 		width: 100%;
 	}
 
@@ -291,12 +319,14 @@
 	}
 	.time-slot-background {
 		pointer-events: none;
+		--divider-line: 2px solid var(--background-modifier-border);
+		border-bottom: var(--divider-line);
 	}
 	.time-slot {
 		grid-row-start: var(--start);
 		width: 100%;
 		box-sizing: border-box;
-		border-top: 2px solid var(--background-modifier-border);
+		border-top: var(--divider-line);
 		height: 2rem;
 	}
 </style>
