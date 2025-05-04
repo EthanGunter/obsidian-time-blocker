@@ -63,9 +63,9 @@
 		}
 	}
 
-	async function openFile() {
-		if (!plugin || !filepath) return;
-		const normalizedFilepath = normalizePath(filepath);
+	async function openFile(path: string) {
+		if (!plugin || !path) return;
+		const normalizedFilepath = normalizePath(path);
 		const file = plugin.app.vault.getAbstractFileByPath(normalizedFilepath);
 
 		if (file instanceof TFile) {
@@ -192,7 +192,7 @@
 		align-items: center;
 		position: relative;
 		z-index: 1;
-		border-radius: .5rem;
+		border-radius: 0.5rem;
 		padding: 0 1rem;
 
 		background: var(--background-primary);

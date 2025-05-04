@@ -28,6 +28,7 @@
 
 	let timeline: HTMLElement;
 	let timelineGrid: HTMLElement;
+	$: currentTime = moment(0);
 
 	let filepath = "";
 	let plugin: TimeBlockPlugin;
@@ -40,8 +41,18 @@
 
 	const fileData = taskStore.getFileData(filepath);
 	onMount(() => {
+		// Setup current time indicator line
+		currentTime = moment();
+		const lineInterval = setInterval(() => {
+			// Update the time once a minute
+			currentTime = moment();
+		}, 1000);
+
 		taskStore.watchFile(filepath);
-		return () => taskStore.unwatchFile(filepath);
+		return () => {
+			clearInterval(lineInterval);
+			taskStore.unwatchFile(filepath);
+		};
 	});
 
 	// --- Time/Pixel Math Utilities ---
@@ -73,7 +84,7 @@
 		return timeRange.start.clone().add(snappedMinutes, "minutes");
 	}
 
-	function timeToPos(time: moment.Moment): number {
+	function timeToPos(time: moment.Moment, relative: boolean = false): number {
 		const gridRect = getInnerClientRect(timelineGrid);
 		// Return 0 if grid isn't rendered yet
 		if (!gridRect || gridRect.height === 0) return 0;
@@ -94,7 +105,11 @@
 		const relativeY = proportion * gridRect.height;
 
 		// Return absolute y position relative to viewport
-		return relativeY + gridRect.top;
+		if (relative) {
+			return relativeY;
+		} else {
+			return relativeY + gridRect.top;
+		}
 	}
 
 	function timeToRow(time: moment.Moment): number {
@@ -227,7 +242,7 @@
 </script>
 
 <div class="timeline-container" style={`--slot-count: ${ROW_COUNT}`}>
-	<h3>Schedule</h3>
+	<h3>Today's Schedule</h3>
 	<div
 		class="timeline"
 		bind:this={timeline}
@@ -246,6 +261,10 @@
 		</div>
 		<div class="time-slots">
 			<div class="time-slot-background" bind:this={timelineGrid}>
+				<div
+					class="time-indicator"
+					style={`--now: ${timeToPos(currentTime, true)}px`}
+				/>
 				{#each hourSlots as slot}
 					<div
 						class="time-slot"
@@ -274,6 +293,9 @@
 </div>
 
 <style lang="scss">
+	.accent {
+		color: var(--color-accent);
+	}
 	.timeline-container {
 		display: flex;
 		flex-direction: column;
@@ -309,9 +331,14 @@
 		}
 	}
 
+	.scheduled-tasks {
+		z-index: 2;
+	}
+
 	// Overlay grids
 	.time-slots {
 		position: relative;
+		z-index: 1;
 	}
 	.time-slot-background,
 	.scheduled-tasks {
@@ -328,5 +355,21 @@
 		box-sizing: border-box;
 		border-top: var(--divider-line);
 		height: 2rem;
+	}
+	.time-indicator {
+		position: absolute;
+		display: flex;
+		top: var(--now);
+		height: 1px;
+		width: 100%;
+		background-color: var(--color-accent-1);
+		&::before {
+			content: "";
+			position: absolute;
+			height: 10px;
+			bottom: 0;
+			width: 100%;
+			background: linear-gradient(transparent, var(--color-accent));
+		}
 	}
 </style>
