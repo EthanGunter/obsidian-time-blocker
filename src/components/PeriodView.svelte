@@ -54,10 +54,8 @@
 	});
 
 	async function onTaskDrop(event: DropEvent<TaskDataWithFile>) {
-		if (event.detail.data) {
-			log(`Moving task ${event.detail.data.content} to ${filepath}`);
+		if (event.detail.data)
 			await moveTask(event.detail.data, filepath, period);
-		}
 	}
 
 	async function openFile() {
@@ -77,7 +75,7 @@
 	class="period-view"
 	class:non-daily={period !== "daily"}
 	class:collapsed={!isExpanded}
-	use:droppable={{ accepts: ["task"], onDrop: onTaskDrop }}
+	use:droppable={{ accepts: ["task", "task/timeline"], onDrop: onTaskDrop }}
 >
 	<header
 		class="period-header"
@@ -158,7 +156,8 @@
 		background: var(--background-primary);
 		overflow: hidden;
 		position: relative;
-		contain: content;
+		// contain: content;
+		height: min-content;
 
 		&.non-daily {
 			grid-row: auto;

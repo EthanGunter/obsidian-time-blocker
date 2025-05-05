@@ -154,6 +154,7 @@ export function draggable<T>(
     data,
     onDragStart, // User callback for native event
     onDrop, // User callback for native event
+    onDropFail,
     ghostRenderOverride: ghostRenderOverride, // Consolidated callback for ghost appearance AND position
     axis = "both",
     devDelay,
@@ -409,21 +410,22 @@ export function draggable<T>(
       // Call user's native drag end callback
 
       // Dispatch custom drop event if dropped on a valid target
+      const dropEvent = new DropEvent({
+        draggableType,
+        data,
+        initiatorNode: node,
+        node: groupNode,
+        ghost,
+        clientX,
+        clientY,
+      });
       if (finalDropTarget && finalDropValid) {
-        const dropEvent = new DropEvent({
-          draggableType,
-          data,
-          initiatorNode: node,
-          node: groupNode,
-          ghost,
-          clientX,
-          clientY,
-        });
         finalDropTarget.dispatchEvent(dropEvent);
         onDrop?.(dropEvent);
       } else {
         // TODO Handle failed drop (e.g., trigger ghost return animation)
-        console.log("Drop failed or occurred outside a valid target.");
+        // console.log("Drop failed or occurred outside a valid target.");
+        onDropFail?.(dropEvent);
       }
 
       // Perform cleanup regardless of drop success
@@ -447,6 +449,7 @@ export function draggable<T>(
       draggableType = newProps.type;
       onDragStart = newProps.onDragStart;
       onDrop = newProps.onDrop;
+      onDropFail = newProps.onDropFail;
       ghostRenderOverride = newProps.ghostRenderOverride; // Update the draggable's render function
       devDelay = newProps.devDelay;
       // Note: Group association is determined at drag start, cannot be updated dynamically this way.
@@ -761,6 +764,7 @@ type DraggableParams<T> = {
   data?: T; // Associated data payload
   onDragStart?: (event: DragStartEvent<T>) => void; // Native event hook
   onDrop?: (event: DropEvent<T>) => void; // Native event hook
+  onDropFail?: (event: DropEvent<T>) => void; // If no doppable is there to recieve
   ghostRenderOverride?: IntermediateGhostRenderFunction<T>; // Consolidated ghost callback
   axis?: DragAxis;
   devDelay?: number; // Debugging delay for ghost removal

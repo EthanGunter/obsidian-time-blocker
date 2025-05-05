@@ -171,11 +171,9 @@
 		} else {
 			const dropTime = posToTime(ghost.getBoundingClientRect().top);
 
-			if (taskData.filepath !== filepath) {
-				const moveSuccess = await moveTask(taskData, filepath, "daily");
-				if (moveSuccess) {
-					taskData.filepath = filepath;
-				}
+			const moveSuccess = await moveTask(taskData, filepath, "daily");
+			if (moveSuccess) {
+				taskData.filepath = filepath;
 			}
 
 			if (taskData.metadata.scheduled) {

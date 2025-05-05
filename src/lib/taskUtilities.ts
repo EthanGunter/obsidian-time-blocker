@@ -76,8 +76,8 @@ export async function updateTask(oldTask: TaskDataWithFile, update: Partial<Task
         }
     } else return false; // TODO elaborate failure
 }
-export async function moveTask(task: TaskDataWithFile, targetFilepath: string, period: Period): Promise<boolean> {
 
+export async function moveTask(task: TaskDataWithFile, targetFilepath: string, period: Period): Promise<boolean> {
     if (task.filepath === targetFilepath) return true;
     const plugin = get(pluginStore);
     const { vault } = plugin.app;

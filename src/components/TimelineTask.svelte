@@ -5,6 +5,7 @@
 		type GhostRenderFunction,
 	} from "src/lib/dnd";
 	import { moment } from "obsidian";
+	import { updateTask } from "src/lib/taskUtilities";
 
 	export let task: TaskDataWithFile;
 	export let gridRow: string;
@@ -17,6 +18,12 @@
 			: task.metadata.status === "canceled"
 				? (statusMarker = "❌ ")
 				: "⌛ ";
+
+	function onDropFail() {
+		updateTask(task, {
+			metadata: { ...task.metadata, scheduled: undefined },
+		});
+	}
 </script>
 
 <div
@@ -24,8 +31,9 @@
 	style={`grid-row: ${gridRow}`}
 	use:dragGroup
 	use:draggable={{
-		type: "task",
+		type: "task/timeline",
 		data: task,
+		onDropFail,
 		// devDelay: 60000,
 	}}
 >
