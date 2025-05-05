@@ -53,6 +53,7 @@ export async function deleteTask(task: TaskDataWithFile): Promise<boolean> {
     } else return false; // TODO elaborate failure
 }
 export async function updateTask(oldTask: TaskDataWithFile, update: Partial<TaskData>): Promise<boolean> {
+
     const plugin = get(pluginStore);
     const file = plugin.app.vault.getAbstractFileByPath(oldTask.filepath);
     if (!file) {
@@ -76,6 +77,7 @@ export async function updateTask(oldTask: TaskDataWithFile, update: Partial<Task
     } else return false; // TODO elaborate failure
 }
 export async function moveTask(task: TaskDataWithFile, targetFilepath: string, period: Period): Promise<boolean> {
+
     if (task.filepath === targetFilepath) return true;
     const plugin = get(pluginStore);
     const { vault } = plugin.app;
@@ -142,6 +144,7 @@ async function createFile(vault: Vault, period: Period, filepath: string): Promi
     else {
         // Use periodic/daily note templates if available
         const plugin = get(pluginStore);
+        // TODO Period should be parsed from the filepath somehow
         const periodSettings = plugin.getPeriodSetting(period);
 
         let templateContent = '';

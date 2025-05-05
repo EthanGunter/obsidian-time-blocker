@@ -56,12 +56,7 @@
 	async function onTaskDrop(event: DropEvent<TaskDataWithFile>) {
 		if (event.detail.data) {
 			log(`Moving task ${event.detail.data.content} to ${filepath}`);
-			const success = await moveTask(event.detail.data, filepath, period);
-
-			// if (success) {
-			// 	// Refresh file existence check and watcher
-			// 	taskStore.watchFile(filepath);
-			// }
+			await moveTask(event.detail.data, filepath, period);
 		}
 	}
 

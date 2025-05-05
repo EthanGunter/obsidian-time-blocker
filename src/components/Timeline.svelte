@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { moment } from "obsidian";
 	import type TimeBlockPlugin from "src/main";
-	import { updateTask } from "src/lib/taskUtilities";
+	import { moveTask, updateTask } from "src/lib/taskUtilities";
 	import TaskView from "./TimelineTask.svelte";
 	import { pluginStore } from "src/stores/plugin";
 	import { onMount } from "svelte";
@@ -149,27 +149,47 @@
 		});
 	}
 
-	function handleTaskDrop(e: DropEvent) {
-		const { draggableType, data, ghost, clientY } = e.detail;
+	async function handleTaskDrop(e: DropEvent) {
+		const { draggableType, ghost, clientY } = e.detail;
+		let taskData: TaskDataWithFile = e.detail.data;
 		if (draggableType.includes("resize")) {
 			const dropTime = posToTime(clientY);
 			const direction = draggableType.split("resize/")[1];
 			if (direction == "start") {
-				scheduleTask(data, dropTime, data.metadata.scheduled?.end);
+				scheduleTask(
+					taskData,
+					dropTime,
+					taskData.metadata.scheduled?.end,
+				);
 			} else if (direction == "end") {
-				scheduleTask(data, data.metadata.scheduled?.start, dropTime);
+				scheduleTask(
+					taskData,
+					taskData.metadata.scheduled?.start,
+					dropTime,
+				);
 			}
 		} else {
-			// TODO If the task is from a different period, move it to today's file
 			const dropTime = posToTime(ghost.getBoundingClientRect().top);
-			if (data.metadata.scheduled) {
-				const duration = data.metadata.scheduled.end.diff(
-					data.metadata.scheduled.start,
+
+			if (taskData.filepath !== filepath) {
+				const moveSuccess = await moveTask(taskData, filepath, "daily");
+				if (moveSuccess) {
+					taskData.filepath = filepath;
+				}
+			}
+
+			if (taskData.metadata.scheduled) {
+				const duration = taskData.metadata.scheduled.end.diff(
+					taskData.metadata.scheduled.start,
 				);
-				scheduleTask(data, dropTime, dropTime.clone().add(duration));
+				scheduleTask(
+					taskData,
+					dropTime,
+					dropTime.clone().add(duration),
+				);
 			} else {
 				scheduleTask(
-					data,
+					taskData,
 					dropTime,
 					dropTime.clone().add(BLOCK_SPAN, "minutes"),
 				);
