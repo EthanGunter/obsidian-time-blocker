@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS, getPeriodicNoteSettings, PERIODIC_NOTES, pluginExists
 import { pluginStore } from "src/stores/plugin";
 import { taskStore } from "./stores/tasks";
 
-export const DEBUG = true;
+export const DEBUG = process.env.NODE_ENV === "development";
 
 export const PLUGIN_NAME = "Time Blocker";
 export default class TimeBlockPlugin extends Plugin {
@@ -14,12 +14,12 @@ export default class TimeBlockPlugin extends Plugin {
     modal?: TimeBlockModal;
 
     async onload() {
-        /* remove after testing:
-        this.app.workspace.onLayoutReady(() => {
-            // new TESTMODAL(this.app, this).open();
-            this.modal = new TimeBlockModal(this.app, this)
-            this.modal.open();
-        }) */
+        if (DEBUG) {
+            this.app.workspace.onLayoutReady(() => {
+                this.modal = new TimeBlockModal(this.app, this)
+                this.modal.open();
+            })
+        }
 
         await this.loadSettings();
 
@@ -47,6 +47,7 @@ export default class TimeBlockPlugin extends Plugin {
         pluginStore.set(this);
         taskStore.initialize(this.app.vault);
     }
+
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
