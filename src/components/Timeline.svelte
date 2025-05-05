@@ -160,6 +160,7 @@
 				scheduleTask(data, data.metadata.scheduled?.start, dropTime);
 			}
 		} else {
+			// TODO If the task is from a different period, move it to today's file
 			const dropTime = posToTime(ghost.getBoundingClientRect().top);
 			if (data.metadata.scheduled) {
 				const duration = data.metadata.scheduled.end.diff(

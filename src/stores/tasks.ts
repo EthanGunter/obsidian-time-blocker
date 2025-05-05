@@ -11,7 +11,7 @@ export type FileData =
 interface TaskStoreState {
     vault: Vault | null;
     files: Map<string, FileData>;
-    watchers: Map<string, EventRef>;
+    watchers: Map<string, EventRef[]>;
     watcherCount: Map<string, number>;
 }
 
@@ -65,15 +65,25 @@ function createTaskStore() {
 
     function watchFile(filepath: string) {
         const state = get(store);
-        const count = state.watcherCount.get(filepath) || 0;
-        state.watcherCount.set(filepath, count + 1);
+        if (!state.vault) return;
 
-        if (count > 0 || !state.vault || state.watchers.has(filepath)) return;
+        const origCount = state.watcherCount.get(filepath) || 0;
+        state.watcherCount.set(filepath, origCount + 1);
 
-        const file = state.vault.getAbstractFileByPath(filepath);
-        if (!(file instanceof TFile)) return;
-
-        const watcher = state.vault.on('modify', (changedFile) => {
+        if (origCount > 0) {
+            return;
+        }
+        const addWatcher = state.vault.on('create', (changedFile) => {
+            if (changedFile.path === filepath) {
+                loadFileContent(filepath);
+            }
+        });
+        const modifyWatcher = state.vault.on('modify', (changedFile) => {
+            if (changedFile.path === filepath) {
+                loadFileContent(filepath);
+            }
+        });
+        const deleteWatcher = state.vault.on('delete', (changedFile) => {
             if (changedFile.path === filepath) {
                 loadFileContent(filepath);
             }
@@ -81,7 +91,7 @@ function createTaskStore() {
 
         update(store => {
             const newWatchers = new Map(store.watchers);
-            newWatchers.set(filepath, watcher);
+            newWatchers.set(filepath, [addWatcher, modifyWatcher, deleteWatcher]);
             return { ...store, watchers: newWatchers };
         });
 
@@ -91,17 +101,20 @@ function createTaskStore() {
     function unwatchFile(filepath: string) {
         update(store => {
             const count = store.watcherCount.get(filepath) || 0;
-            const watcher = store.watchers.get(filepath);
+            const watchers = store.watchers.get(filepath);
             if (count > 0) {
                 store.watcherCount.set(filepath, count - 1);
             }
-            else if (watcher && store.vault) {
-                store.vault.offref(watcher);
-                const newWatchers = new Map(store.watchers);
-                newWatchers.delete(filepath);
+            else if (watchers && store.vault) {
+                for (const watcher of watchers) {
+                    store.vault.offref(watcher);
+                }
 
+                store.watchers.delete(filepath);
+                const newWatchers = new Map(store.watchers);
+
+                store.watchers.delete(filepath);
                 const newFiles = new Map(store.files);
-                newFiles.delete(filepath);
 
                 return { ...store, watchers: newWatchers, files: newFiles };
             }

@@ -5,8 +5,9 @@
 	import PeriodTask from "./PeriodTask.svelte";
 	import type TimeBlockPlugin from "src/main";
 	import { DropEvent, droppable } from "src/lib/dnd";
-	import { deleteTask, moveTask } from "src/lib/taskUtilities";
+	import { moveTask } from "src/lib/taskUtilities";
 	import { log } from "src/lib/logger";
+	import { DEBUG } from "src/main";
 
 	export let period: Period;
 	export let plugin: TimeBlockPlugin;
@@ -28,9 +29,11 @@
 	};
 
 	let isExpanded = period === "daily";
-	let filepath = "";
-	let fileData = taskStore.getFileData(filepath);
 
+	let filepath = "";
+	$: currentFile = filepath;
+
+	let fileData = taskStore.getFileData(filepath);
 	$: numTasks = $fileData?.status === "loaded" ? $fileData.tasks.length : 0;
 	$: fileExists = $fileData?.status === "loaded";
 
@@ -44,10 +47,9 @@
 		}
 	}
 
-	$: currentFile = filepath;
-
 	onMount(() => {
 		taskStore.watchFile(currentFile);
+		fileData = taskStore.getFileData(currentFile);
 		return () => taskStore.unwatchFile(currentFile);
 	});
 
@@ -56,10 +58,10 @@
 			log(`Moving task ${event.detail.data.content} to ${filepath}`);
 			const success = await moveTask(event.detail.data, filepath, period);
 
-			if (success) {
-				// Refresh file existence check and watcher
-				taskStore.watchFile(filepath);
-			}
+			// if (success) {
+			// 	// Refresh file existence check and watcher
+			// 	taskStore.watchFile(filepath);
+			// }
 		}
 	}
 
@@ -116,6 +118,7 @@
 			{getPeriodTitle(period)}
 		</h3>
 		<span class="count-indicator">{numTasks}</span>
+		{#if DEBUG}<span>{filepath}</span>{/if}
 		{#if fileExists}
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -192,7 +195,7 @@
 		align-items: center;
 		position: relative;
 		z-index: 1;
-		border-radius: .5rem;
+		border-radius: 0.5rem;
 		padding: 0 1rem;
 
 		background: var(--background-primary);
