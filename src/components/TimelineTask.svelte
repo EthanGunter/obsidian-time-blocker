@@ -80,7 +80,7 @@
 	.task-content {
 		overflow: hidden;
 		text-overflow: ellipsis;
-		white-space: nowrap;
+		// white-space: nowrap;
 
 		padding: 0 0.4em;
 		font-size: 0.9em;

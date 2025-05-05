@@ -14,14 +14,14 @@
 
 <style lang="scss">
 	.timeblock-container {
-		gap: 2rem;
+		gap: 1.5rem;
 		padding: 0 1rem;
 
 		display: grid;
 		grid-template-columns: 1fr 1px 1fr;
 
-		height: calc(var(--dialog-max-height) - 4rem);
-		width: calc(var(--dialog-max-width) - 3rem);
+		height: calc(var(--dialog-max-height) - 3rem);
+		// width: calc(var(--dialog-max-width) - 3rem);
 	}
 	.left {
 		display: flex;

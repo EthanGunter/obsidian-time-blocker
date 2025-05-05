@@ -153,7 +153,7 @@
 
 <style lang="scss">
 	.period-view {
-		background: var(--background-primary);
+		// background: var(--background-primary);
 		overflow: hidden;
 		position: relative;
 		// contain: content;
@@ -192,7 +192,7 @@
 		border-radius: 0.5rem;
 		padding: 0 1rem;
 
-		background: var(--background-primary);
+		// background: var(--background-primary);
 
 		transition: background 0.2s ease;
 
@@ -233,7 +233,6 @@
 		border-radius: 0 0 8px 8px;
 		border-bottom: 3px solid var(--background-modifier-border);
 		// border-top: none;
-		background: var(--background-primary);
 	}
 
 	.empty-state {

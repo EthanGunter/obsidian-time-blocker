@@ -57,7 +57,7 @@
 		padding: 0 0.5rem;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		white-space: nowrap;
+		// white-space: nowrap;
 	}
 
 	.task-controls {
