@@ -24,7 +24,7 @@
 	}}
 >
 	<div class="task-content">
-		{statusMarker}{task.content}
+		{statusMarker}{task.contentLite}
 	</div>
 </div>
 

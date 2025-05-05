@@ -28,6 +28,7 @@ declare global { // TODO maybe don't do this...
     type TaskStatus = "active" | "in-progress" | "completed" | "canceled";
     interface TaskData {
         raw: string;
+        contentLite: string;
         content: string;
         metadata: {
             scheduled?: { start: Moment; end: Moment };

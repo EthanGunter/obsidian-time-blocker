@@ -195,6 +195,12 @@ async function createFile(vault: Vault, period: Period, filepath: string): Promi
 
 //#region UTILITY
 
+export const statusCharMap: { [key in TaskStatus]: string } = {
+    "active": " ",
+    "in-progress": "/",
+    "canceled": "-",
+    "completed": "x"
+}
 function getTaskSections(content: string): { header: string, tasks: TaskData[] }[] {
     const sections: { header: string, tasks: TaskData[] }[] = [];
     const plugin = get(pluginStore);
@@ -205,24 +211,20 @@ function getTaskSections(content: string): { header: string, tasks: TaskData[] }
     let currentSection: { header: string, tasks: TaskData[] } = { header: "", tasks: [] };
 
     const headerMatcher = new RegExp(`^#{1,6}.*${escapeRegex(plugin.settings.taskHeaderTag)}.*`, 'i')
-    const taskMatcher = new RegExp(`^- \\[[ -\/xX?]].*[A-z]+`);
+    const taskMatcher = new RegExp(`^- \\[[ -\/xX?]] .*`);
 
     for (const line of lines) {
         // Check for the task header tag
         let headerMatch, taskMatch;
         if (headerMatch = line.match(headerMatcher)) {
-            // console.log("HEADER:", headerMatch[0]);
-
             // Push the last collected section and prepare the next
             if (currentSection.header !== "") {
                 sections.push(currentSection);
-                // console.log("Section complete", currentSection);
             }
             currentSection = { header: headerMatch[0], tasks: [] }
         }
         else if (taskMatch = line.match(taskMatcher)) {
             currentSection?.tasks.push(deserializeTask(taskMatch[0]))
-            // console.log("TASK:", taskMatch[0], "| Current section:", currentSection?.tasks.map((x: any) => x.content));
         }
     }
     sections.push(currentSection);
@@ -231,7 +233,7 @@ function getTaskSections(content: string): { header: string, tasks: TaskData[] }
 }
 
 function serializeTask(task: TaskData): string {
-    let output = "- [ ] " + task.content;
+    let output = `- [${statusCharMap[task.metadata.status]}] ${task.content}`;
 
     if (task.metadata.scheduled) {
         // Format time as HH:mma without dates
@@ -281,9 +283,12 @@ function deserializeTask(task: string): TaskData {
         default: status = "completed"; break;
     }
 
+
+    const content = removeMetadata(task).trim();
     const data: TaskData = {
         raw: task,
-        content: removeMetadata(removeMarkdown(task)).trim(),
+        contentLite: removeMarkdown(content).trim(),
+        content,
         metadata: {
             ...archived,
             ...scheduled,
@@ -296,20 +301,20 @@ function deserializeTask(task: string): TaskData {
 
 function removeMetadata(text: string): string {
     return text
+        .replace(/^- \[.] /, "") // Remove "- [ ] " at the beginning of tasks
         .replace(SCHEDULE_TIME_REGEX, "")
-        .replace(SCHEDULE_DATE_REGEX, "")
-        .replace(ARCHIVE_REGEX, "");
+    // .replace(SCHEDULE_DATE_REGEX, "")
+    // .replace(ARCHIVE_REGEX, "");
 }
 
 function removeMarkdown(text: string): string {
     return text
-        .replace(/^- \[[ -\/xX?]\] /, "") // Remove "- [ ] " at the beginning of tasks
-        .replace(/^[\s-*]*\[\s?[xX]?\s?\]\s*/, "") // Remove checkbox and leading bullet
+        // .replace(/^[\s-*]*\[\s?[xX]?\s?\]\s*/, "") // Remove checkbox and leading bullet
         .replace(/(\*\*|__)(.*?)\1/g, "$2") // Remove bold
         .replace(/(\*|_)(.*?)\1/g, "$2") // Remove italics
         .replace(/~~(.*?)~~/g, "$1") // Remove strikethrough
-        .replace(/!?\[\[([^\]|]+)(\|.*?)?\]\]/g, (_, link) => link.trim())
-        .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
+        .replace(/!?\[{2}([^\]|]+)(\|.*?)?\]{2}/g, (_, link) => link.trim()) // Embeds and wiki links
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1") // Markdown links
         .trim();
 }
 

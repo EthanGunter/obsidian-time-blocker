@@ -265,7 +265,7 @@
 		class="timeline"
 		bind:this={timeline}
 		use:droppable={{
-			accepts: ["task", "task/resize/*"],
+			accepts: ["task", "task/timeline", "task/resize/*"],
 			onDrop: handleTaskDrop,
 			ghostRenderOverride: handleGhostRender,
 		}}
